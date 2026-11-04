@@ -1,7 +1,6 @@
 # HomeWise AI — Demo Guide
 
-Live demo for the Meta Global AI Developer Hackathon. The demo shows the
-real application with genuine Meta Model API calls — no canned AI text.
+The demo shows the real application with genuine Meta Model API calls.
 
 ## Startup
 
@@ -84,43 +83,3 @@ Expect within the 60-second request window: 2–3 plain-language
 observations with per-observation Supporting figures, a Limitations
 note, and the attribution "Explanation by Meta Muse Spark 1.3". The
 terminal prints the diagnostic record at the same time.
-
-## Keeping secrets safe on screen
-
-- Never open `.env.local` or print environment variables on the shared
-  screen. The key lives only in that git-ignored file and server
-  memory; the UI, diagnostics, and error messages never contain it.
-- If you must prove the key exists, show `.env.example` (names only).
-- Close or blur any tab showing the Meta dashboard.
-
-## If a live explanation fails
-
-AI calls can fail (network, rate limits, provider hiccups). The app was
-built for this — treat it as a feature, not a bug:
-
-1. The calculated results and charts stay on screen; only the
-   explanation area shows "We couldn't show an AI explanation."
-2. Narrate: "The numbers never depended on the AI — that is the whole
-   point of the architecture."
-3. Click **Try again** once if it appears (transient failures only).
-4. Fallback: show a pre-recorded 30-second clip of a successful
-   Generate insights run (record one the night before, same inputs as
-   above), then continue the live demo.
-
-Do not retry repeatedly on camera, and do not paste an old explanation
-into the live UI and present it as live.
-
-## Three-minute outline
-
-| Time | Beat |
-|---|---|
-| 0:00–0:30 | The problem: listing prices hide taxes, insurance, HOA, and maintenance; chatbots explain fluently but invent figures. HomeWise pairs tested math with grounded AI. |
-| 0:30–1:10 | Affordability: enter the sample income/expenses, submit, show remaining income and cushion. Point out the charts render with zero AI involved. |
-| 1:10–1:50 | Compare: A vs B side by side, neutral differences, no winner. Mention estimates vs user-provided labels. |
-| 1:50–2:40 | Generate insights live: watch the terminal diagnostic line land while observations render with supporting figures. |
-| 2:40–3:00 | Why it matters: every number traces to tested code; the AI explains verified facts or stays silent. |
-
-## After the demo
-
-Set `HOMEWISE_AI_DIAGNOSTICS=` (empty) in `.env.local` and restart the
-server so routine runs stay quiet. Never commit `.env.local`.
