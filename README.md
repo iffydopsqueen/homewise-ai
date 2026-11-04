@@ -1,132 +1,111 @@
 # HomeWise AI
 
-> Release status: three MVP workflows (Affordability, Property Costs,
-> Compare Properties) with deterministic calculations, provenance
-> labels, responsive UI, Light/Natural/Dark themes, and optional
-> Meta Muse Spark 1.3 explanations validated against verified figures.
-> Verified: 474/474 unit/API tests, typecheck, and lint (all current);
-> 166/166 Playwright tests and the production build on Mac before the
-> final prompt-polish change. That change touched only AI wording and
-> its unit tests, but one confirmatory Mac run is still recommended —
-> see docs/DEMO.md. What-If calculation engine and API exist but have
-> no UI yet and stay out of the demo path.
+**Understand the full cost of a home before you buy.**
 
-## Project purpose
+HomeWise AI helps first-time homebuyers assess monthly affordability,
+estimate the ongoing and upfront costs of homeownership, and compare
+two properties side by side.
 
-HomeWise AI is an AI-assisted homebuying affordability and property
-comparison application. It helps first-time homebuyers understand the
-true cost of homeownership — beyond principal and interest — and avoid
-becoming house poor.
+It combines deterministic financial calculations with optional
+explanations powered by Meta Muse Spark 1.3, helping buyers understand
+financial information without relying on AI to perform the calculations.
 
-## Problem being addressed
+Built for the Meta Global AI Developer Hackathon.
 
-Buyers focus on listing prices and headline mortgage payments while
-property taxes, homeowners insurance, HOA fees, maintenance, and other
-recurring costs stay hidden until after purchase. Traditional
-calculators show numbers without explanation; general AI chatbots
-explain fluently but can invent or miscalculate figures. HomeWise AI
-pairs deterministic, tested calculations with AI explanations grounded
-exclusively in those verified figures.
+## Why HomeWise AI?
 
-## MVP workflows
+A mortgage payment does not represent the full cost of owning a home.
+Property taxes, homeowners insurance, HOA fees, maintenance reserves,
+and other recurring costs — plus the upfront cash needed at purchase —
+can reshape a household budget long after the listing price stops
+mattering.
 
-1. **Affordability** — monthly take-home income, debts, recurring
-   expenses, savings, and proposed housing costs produce remaining
-   income, obligation ratios, and a savings cushion.
-2. **Property Costs** — true cost of ownership: mortgage principal
-   and interest, property taxes, homeowners insurance, HOA fees,
-   maintenance reserve, PMI, other recurring costs, and upfront cash.
-3. **Compare Properties** — side-by-side comparison of two properties
-   with per-component and total differences, neutrally presented.
-4. **Financial Insights** (in every workflow) — deterministic charts
-   plus optional AI explanations grounded in verified calculations —
-   the model never computes figures.
+Traditional calculators show numbers without explanation, while
+general-purpose AI chatbots explain fluently but can invent or
+miscalculate figures. HomeWise AI pairs tested calculation code with
+AI explanations grounded exclusively in those verified figures, so
+buyers see both the numbers and what they mean.
 
-What-If scenarios exist in the calculation engine and API but have no
-UI yet; they are out of the demo path.
+## Features
 
-Around the workflows, the app provides a dashboard with per-workflow
-status and result summaries, deterministic insight charts in every
-workflow, source/provenance labels with supporting figures, a
-responsive mobile-to-desktop layout, and Light, Natural, and Dark
-appearance themes.
+| Area | What you can do |
+|---|---|
+| Affordability | See how a proposed housing payment fits against take-home income, debts, expenses, and savings. |
+| Property Costs | Break down one property's monthly, annual, and upfront costs across every major category. |
+| Compare Properties | Compare two properties side by side with neutral, per-component differences. |
+| Financial Insights | Read deterministic charts plus optional AI explanations with supporting evidence. |
+| Dashboard | Track each workflow's status and revisit completed results. |
+| Layout & themes | Work on mobile or desktop in Light, Natural, or Dark appearance. |
 
-Full requirements, out-of-scope items, and open decisions:
-[PRODUCT_SPEC.md](PRODUCT_SPEC.md).
+Every figure carries a source label — user-provided, estimate,
+assumption, or calculated — and every result view includes an
+educational-use disclaimer.
 
-For the hackathon demo walkthrough, see [docs/DEMO.md](docs/DEMO.md).
+## How Meta AI works
 
-The application distinguishes user-provided values from estimates and
-assumptions, and never promises mortgage approval or professional
-financial advice.
+Each explanation follows the same verified pipeline:
 
-## How AI fits in
+User financial inputs
+→ deterministic financial calculations
+→ server-generated facts ledger
+→ Meta Muse Spark 1.3 Responses API
+→ structured AI explanation
+→ server-side numerical and citation validation
+→ readable observations, supporting evidence, and limitations.
 
-- **Role of Meta Muse Spark 1.3:** on explicit click only, the server
-  recomputes the workflow's figures, builds a fact ledger, and asks
-  the model (Responses API, `low` reasoning effort) to explain those
-  figures in plain language. Nothing is requested automatically.
-- **Why calculations are deterministic:** every dollar, ratio, and
-  chart is computed by tested integer math in `lib/calc` and rendered
-  from those results. AI text is never parsed for numbers and never
-  feeds a visualization.
-- **How validation works:** every number in the model's reply must
-  match a cited ledger fact exactly, and verdict, recommendation, or
-  provenance vocabulary is rejected outright. Anything ungrounded
-  discards the whole explanation.
-- **Fallback:** if AI is unavailable, disabled, or rejected, the
-  calculated results and charts stay fully visible with a short
-  neutral message and a manual retry only for transient failures.
-  There are no automatic retries.
-- **Shape and privacy:** the model must reply in a strict JSON schema
-  (observations plus limitations, both citation-bound); an opt-in
-  server diagnostic log records timings, outcome categories, and token
-  counts only — never figures, prompts, responses, or secrets.
+Key properties of this design:
 
-## API endpoints
+- Meta AI interprets calculated figures; deterministic code performs
+  all financial arithmetic.
+- Explanation requests are user-initiated — nothing is requested
+  automatically, and there are no automatic retries.
+- The model does not independently verify user-entered data.
+- The model does not recommend a home or approve a mortgage.
+- Every number in a reply must match a cited ledger fact exactly, or
+  the whole explanation is safely rejected.
+- Calculations and visualizations remain fully usable when Meta is
+  unavailable, with a short neutral message and manual retry only for
+  transient failures.
 
-Same-origin JSON API over the deterministic engine (all POST):
+Validation grounds figures and citations; like any fixed check, it
+cannot prove every qualitative sentence true, so explanations stay
+short, cited, and beside their evidence.
 
-- `/api/affordability` — affordability assessment + provenance
-- `/api/true-cost` — true cost breakdown + provenance
-- `/api/compare` — two-property comparison + per-side provenance
-- `/api/what-if` — scenario recomputation + base/scenario provenance
-- `/api/explain` — validated AI explanation + server facts
+## Technology
 
-Requests carry `{ data, provenance? }`; errors are sanitized
-`{ ok: false, error: { code, message, issues? } }` with no submitted
-values. Details: [ARCHITECTURE.md](ARCHITECTURE.md) implementation
-records.
+- Next.js App Router + React + TypeScript (strict)
+- Tailwind CSS
+- Zod for input, API, and model-output validation
+- Meta Muse Spark 1.3 via the Responses API (server-side only)
+- Vitest for unit/API tests, Playwright for end-to-end tests
+- ESLint
 
-## Technology stack (exact pins in package.json)
+Exact dependency versions are pinned in `package.json`.
 
-Rationale for each choice lives in [ARCHITECTURE.md](ARCHITECTURE.md).
+## Getting started
 
-- Next.js 16.4.3 (App Router) + React 19.3.1 + TypeScript 5.9.3 (strict)
-- Tailwind CSS 4.3.3 (component library deferred for the MVP)
-- Zod 4.6.7 for input and output validation
-- Vitest 5.0.5 for unit testing, Playwright 1.64.1 for end-to-end testing
-- ESLint 10.14.0 + eslint-config-next 16.4.3
-- Meta Model API using Muse Spark 1.3, server-side only
-  (see [META_API_NOTES.md](META_API_NOTES.md))
-
-## Running the application
-
-Prerequisites: Node.js 20+ and npm.
+Prerequisites: Node.js 20.9 or newer (per the Next.js 16 engine
+requirement) and npm.
 
 ```bash
+git clone https://github.com/iffydopsqueen/homewise-ai.git
+cd homewise-ai
 npm install
-npm run dev                  # http://localhost:3000
+npm run dev
 ```
 
-If you do not already have a `.env.local` file, create one from the
-template (never overwrite an existing `.env.local`):
+Open http://localhost:3000. The calculators, charts, dashboard, and
+comparison views all work without a Meta API key.
+
+To enable optional AI explanations, create a `.env.local` file from
+the template (never overwrite an existing `.env.local`) and add your
+key locally:
 
 ```bash
-cp .env.example .env.local   # then fill in MODEL_API_KEY locally
+cp .env.example .env.local   # then fill in MODEL_API_KEY
 ```
 
-Environment variables (names only — never commit values):
+Environment variables (names only — values stay local):
 
 - `MODEL_API_KEY` — Meta Model API key, read server-side at call time.
 - `AI_EXPLAIN_ENABLED` — kill switch; production stays disabled unless
@@ -135,46 +114,35 @@ Environment variables (names only — never commit values):
 - `HOMEWISE_AI_EFFORT` — experimental effort override; only `"minimal"`
   changes the default `"low"`. Not a production recommendation.
 
-Without `MODEL_API_KEY`, calculations and charts work fully; only the
-optional AI explanation reports unavailable.
-
 ## Running tests
 
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint .
 npm run test        # Vitest unit/API suite
-npm run test:e2e    # Playwright (needs a browser-capable terminal)
+npm run test:e2e    # Playwright journeys (stubbed provider, no live calls)
 npm run build       # production build
 ```
 
-## Security principles
+## Project documentation
 
-- Never commit, print, or log API keys, credentials, or populated
-  environment variables.
-- Validate all user inputs and all model outputs before use.
-- Follow secure coding practices; add no unnecessary dependencies or
-  infrastructure.
-- Environment files are git-ignored by default (see `.gitignore`).
-- Full risk analysis: [ARCHITECTURE.md](ARCHITECTURE.md) section F.
+- [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — product requirements and MVP scope.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — technical design and implementation records.
+- [META_API_NOTES.md](META_API_NOTES.md) — Meta integration details and verification notes.
+- [PROJECT_RULES.md](PROJECT_RULES.md) — engineering ground rules and safety baseline.
+- [docs/DEMO.md](docs/DEMO.md) — three-minute demo recording guide.
 
-## Financial accuracy principles
+## Scope and limitations
 
-- Financial calculations must be deterministic application logic
-  (plain code with tested math), never LLM-generated arithmetic.
-- Model output may explain or present numbers; it must never be the thing
-  that computes them.
-- Important numeric behavior must be covered by tests, and nothing is
-  claimed to work until it has actually been tested.
-
-## Product limitations
-
-- Estimates and assumptions are labeled, not independently verified;
-  upfront cash is this app's estimate, not a lender's cash-to-close.
-- No mortgage-approval predictions, property rankings, or financial
-  advice — the app presents figures neutrally for education only.
-- AI explanations are optional, validated for figure grounding but not
-  guaranteed semantically complete; failures keep the calculated view.
-- Session data is memory-only: refresh or close the tab clears it.
-- Same-origin MVP: no accounts, persistence, or rate limiting — abuse
-  protection must be revisited before any public deployment.
+- Educational estimates only — not lending or credit approval, and not
+  personalized financial advice.
+- The app never ranks properties or recommends a purchase.
+- User-provided values are not independently verified; estimates
+  depend on the assumptions supplied.
+- Upfront cash is this app's estimate, not a lender-confirmed
+  cash-to-close figure; missing costs such as PMI affect estimates.
+- No accounts or persistent financial records in the MVP; session data
+  clears on refresh.
+- The What-If user interface is intentionally deferred (its engine and
+  API are implemented and tested).
+- AI explanation availability may vary; calculations never depend on it.

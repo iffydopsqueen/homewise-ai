@@ -1,10 +1,11 @@
 # HomeWise AI — Technical Architecture
 
-Living design document: Phases 1-4 are built (scaffold plus the
-deterministic calculation engine); Phases 5-8 remain. Phase 4
-implementation decisions are recorded in the appendix below.
-Product requirements live in [PRODUCT_SPEC.md](PRODUCT_SPEC.md);
-engineering ground rules live in [PROJECT_RULES.md](PROJECT_RULES.md).
+Living design document for the finished MVP. Sections B–H record the
+approved design (with as-built notes where the implementation
+narrowed or deferred a plan); the appendices record per-phase
+implementation decisions. Product requirements live in
+[PRODUCT_SPEC.md](PRODUCT_SPEC.md); engineering ground rules live in
+[PROJECT_RULES.md](PROJECT_RULES.md).
 
 A note on verification (ground rule 4): this document recommends
 technologies and describes integration patterns, but exact API shapes,
@@ -122,6 +123,12 @@ install time, not assumed here.
 
 ### C.5 Approved AI tool-calling architecture
 
+> Design history — not shipped. The approved containment model below
+> was superseded by a narrower one: the model makes no tool calls and
+> receives only a server-generated fact ledger (see §E and the Phase 7
+> record). The function names survive as the server API the route
+> calls directly.
+
 The model gets capabilities through a small fixed allowlist of
 server-executed tools — plain function calls into the calculation
 engine, not shell commands, not database access, not network calls:
@@ -153,6 +160,8 @@ the architecture above does not depend on its details.
   200%-interest rates). Client-side checks give fast feedback;
   server-side checks are the real enforcement.
 - Tool arguments: validated with the same schemas before execution.
+  (Design history: no tools shipped, so this step has no runtime
+  counterpart; the route validates explain-request inputs instead.)
 - Model output: validated against a strict explanation schema (plain
   text plus references to result IDs, not free-floating figures).
   Output that fails validation is discarded in favor of the calc-only
@@ -220,16 +229,16 @@ implementation and tests must handle.
 
 ### D.4 Other recurring costs
 
-- Inputs: user-specified monthly amounts (form per unresolved
-  decision 6 in PRODUCT_SPEC.md).
+- Inputs: user-specified monthly amounts as label/amount pairs (labels
+  1–60 chars, at most 100 lines).
 - Outputs: monthly total of other costs.
 - Edge cases: empty list (valid, totals zero); negative entries
   (reject).
 
 ### D.5 Total ownership cost and upfront cash
 
-- Inputs: outputs of D.1–D.4 plus down payment (and closing costs if
-  unresolved decision 4 resolves to include them).
+- Inputs: outputs of D.1–D.4 plus down payment and optional
+  user-supplied closing costs.
 - Outputs: total monthly cost, total annual cost, upfront cash
   required — each component traceable to its source.
 - Edge cases: totals must equal the sum of rounded components under
@@ -242,7 +251,7 @@ implementation and tests must handle.
   recurring expenses, savings, proposed monthly housing cost.
 - Outputs: housing-cost-to-income ratio, total-obligations ratio,
   residual monthly cash after all obligations, and savings cushion —
-  each labeled, with thresholds presented as educational guidelines.
+  raw ratios only, with no thresholds, verdicts, or approvals.
 - Edge cases: zero or negative income (cannot assess — reject with a
   clear message, never divide by zero); obligations meeting or
   exceeding income (valid result showing a shortfall, not an error);
@@ -323,14 +332,15 @@ the model sits outside that path:
 - API key exposure. Risk: model API key leaks via client bundle,
   logs, errors, or the repository. Mitigations: server-only key
   storage, never imported into client code; `.gitignore`d env files;
-  no keys in logs, errors, or prompts echoed to the client; key
-  rotation plan documented before production use.
-- Prompt injection. Risk: user-entered text (property notes, free-text
-  questions) attempts to override the model's instructions. Mitigations:
-  user content is always passed as untrusted data, never as
-  instructions; the tool allowlist bounds what any injection could
-  achieve; model output must still pass schema validation and numeric
-  verification before display.
+  no keys in logs, errors, or prompts echoed to the client; a key
+  rotation plan is still required before any production use.
+- Prompt injection. Risk: user-entered text (other-cost line labels)
+  attempts to override the model's instructions. Mitigations: user
+  content is always passed as untrusted data, never as instructions
+  (user-controlled labels render generically in the model-facing
+  ledger); with no tools shipped, an injection can only affect
+  explanation wording, which must still pass schema validation,
+  banned-language checks, and numeric verification before display.
 - Malformed user inputs. Risk: hostile or accidental bad input
   corrupts calculations or crashes the server. Mitigations: Zod
   validation on client (feedback) and server (enforcement); finite,
@@ -346,9 +356,11 @@ the model sits outside that path:
   model API; HTTPS-only transport; a user-facing note explaining what
   data leaves the browser and why.
 - Excessive API usage. Risk: runaway costs or quota exhaustion from
-  repeated AI calls. Mitigations: AI requested only on explicit user
-  action (not on every keystroke); server-side rate limiting;
-  timeouts; identical-scenario response caching where safe.
+  repeated AI calls. Mitigations shipped: AI requested only on
+  explicit user action (not on every keystroke); no automatic retries;
+  60-second timeouts. Server-side rate limiting and response caching
+  were considered but remain future work for any public deployment
+  (same-origin MVP).
 - Dependency vulnerabilities. Risk: compromised or outdated packages.
   Mitigations: minimal dependency set (see the deferred component
   library); pinned versions with a lockfile; `npm audit` (or the
@@ -360,9 +372,12 @@ the model sits outside that path:
   on any model-derived string; if rich formatting is ever wanted, it
   goes through a vetted sanitizer — not in the MVP.
 
-## G. Proposed project structure
+## G. Project structure
 
-Proposed only — created during the scaffold phase, not now.
+As built (the scaffold followed this proposal; `public/` was never
+needed and does not exist; `app/` holds the dashboard plus
+affordability, property-costs, and compare routes with no `results/`
+directory).
 
 ```text
 homewise-ai/
@@ -377,8 +392,8 @@ homewise-ai/
 ├── components/            # React UI: forms, breakdown tables, labels
 ├── lib/
 │   ├── calc/              # Deterministic financial engine (pure functions)
-│   ├── validation/        # Zod schemas: inputs, tool args, model outputs
-│   ├── ai/                # Server-only model client + tool orchestration
+│   ├── validation/        # Zod schemas: inputs, API envelopes, model outputs
+│   ├── ai/                # Server-only model client + output validation
 │   └── format/            # Display formatting (cents→dollars, percents)
 ├── tests/                 # Vitest unit tests for calc + validation
 ├── e2e/                   # Playwright end-to-end journey tests

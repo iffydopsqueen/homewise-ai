@@ -4,6 +4,12 @@ Product requirements for the MVP. Technical design lives in
 [ARCHITECTURE.md](ARCHITECTURE.md). Engineering ground rules live in
 [PROJECT_RULES.md](PROJECT_RULES.md).
 
+> Release scope. **Implemented:** Affordability, Property Costs,
+> Compare Properties, Dashboard, Financial Insights, and optional Meta
+> explanations. **Deferred:** user-facing What-If scenarios (engine and
+> API implemented and tested; UI outside the current release — see
+> §3.4).
+
 ## 1. Target users
 
 Primary users — first-time homebuyers who:
@@ -79,9 +85,9 @@ is deterministic application logic.
 
 ### 3.5 Grounded AI explanations and insights
 
-Muse Spark generates plain-language explanations and insights (for
-example: why one property costs more per month, which cost driver
-dominates, how a what-if change moved the total). The model works only
+Meta Muse Spark 1.3 generates plain-language explanations and insights
+(for example: why one property costs more per month, or which cost
+driver dominates). The model works only
 from verified application calculations, must never compute or invent
 figures independently, and its text is supplementary: the numbers shown
 on screen always come from the calculation engine, with or without AI.
