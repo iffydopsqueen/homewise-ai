@@ -71,6 +71,12 @@ rate, property taxes, homeowners insurance, and maintenance inputs and
 sees recomputed totals and deltas against the base. All recomputation
 is deterministic application logic.
 
+> Build status: the deterministic engine (`lib/calc/whatIf.ts`) and the
+> `POST /api/what-if` endpoint are implemented and tested, but the
+> user-facing What-If controls were intentionally deferred to keep the
+> release focused on the three completed workflows. The requirement
+> above stands for a future increment.
+
 ### 3.5 Grounded AI explanations and insights
 
 Muse Spark generates plain-language explanations and insights (for
@@ -106,7 +112,8 @@ on screen always come from the calculation engine, with or without AI.
 4. The user adds property B and sees the side-by-side comparison
    with deltas.
 5. The user runs what-if scenarios (down payment, rate, taxes,
-   insurance, maintenance) and sees how totals move.
+   insurance, maintenance) and sees how totals move. (Deferred from
+   this release: see the §3.4 build-status note.)
 6. At each results step, the user may read an AI-generated explanation
    grounded in the verified figures on screen.
 7. If AI is unavailable, steps 1–5 still work fully; only the
@@ -137,12 +144,17 @@ Global UX requirements across this journey:
 
 1. Affordability thresholds: which ratios or guidelines (if any) to
    show, and how to label them as general educational guidelines
-   rather than lending criteria.
+   rather than lending criteria. → Resolved: the engine reports raw
+   ratios only, with no thresholds, verdicts, or approvals.
 2. Maintenance reserve default: which heuristic (if any) to offer as a
-   starting estimate, clearly labeled as an assumption.
+   starting estimate, clearly labeled as an assumption. → Resolved:
+   1% annually, editable, always badged as an assumption with a
+   "starting point only" caption.
 3. PMI (private mortgage insurance): in or out of the MVP cost model.
    The confirmed cost list does not include it, but low–down-payment
-   scenarios are materially incomplete without it.
+   scenarios are materially incomplete without it. → Resolved: in, as
+   an optional user-entered monthly figure on its own labeled line;
+   no estimation formula.
 4. Closing costs: in or out of the upfront-cash figure.
 5. Loan terms offered: fixed 30-year only, or a choice (e.g. 15/30).
 6. What counts as "other recurring costs": free-form user entries only,

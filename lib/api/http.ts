@@ -19,7 +19,8 @@ export type ApiErrorCode =
   | "validation_error"
   | "invalid_json"
   | "method_not_allowed"
-  | "internal_error";
+  | "internal_error"
+  | "ai_unavailable";
 
 export interface SanitizedIssue {
   path: string;
@@ -140,6 +141,26 @@ export function internalErrorResponse(): {
     body: {
       ok: false,
       error: { code: "internal_error", message: "An unexpected error occurred." },
+    },
+  };
+}
+
+// AI explanations are optional: missing keys, model outages, timeouts, and
+// rejected model output all collapse to this stable fail-soft response. The
+// message carries no figures, reasons, or provider details.
+export function aiUnavailableResponse(): {
+  status: 503;
+  body: ApiErrorBody;
+} {
+  return {
+    status: 503,
+    body: {
+      ok: false,
+      error: {
+        code: "ai_unavailable",
+        message:
+          "AI explanations are unavailable right now. Your calculations are unaffected.",
+      },
     },
   };
 }

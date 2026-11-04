@@ -24,12 +24,40 @@ Source: official Meta documentation at <https://dev.meta.ai/docs>
 - SDK/library docs exist; no SDK chosen yet. Ground rule 9 applies:
   prefer the smallest client that covers our needs.
 
-## Not yet verified (Phase 7 gate)
+## Integration record (Phase 7, as built)
 
-- Exact request/response JSON shapes for the chosen protocol.
-- Tool-calling wire format and structured-output schema dialect.
-- Rate limits, pricing, timeouts, and error-code taxonomy.
-- Whether an official TypeScript SDK exists and what it covers.
+- Protocol: **Responses API** (`POST https://api.meta.ai/v1/responses`),
+  single-turn stateless input (developer instructions + fact-ledger user
+  block), no tools, no history, no files.
+- Model: `muse-spark-1.3` (standard variant; Contributor variants are
+  deliberately never selected). Reasoning effort `low`; `minimal` exists
+  only behind the `HOMEWISE_AI_EFFORT` experiment flag after it produced
+  validation failures in testing.
+- Structured output: `text.format` JSON Schema (`homewise_explanation`,
+  strict) with observations + limitations; the server re-validates
+  everything with Zod regardless. Requests set `store: false` and cap
+  output at 8,000 tokens.
+- Client (`lib/ai/metaClient.ts`): 60 s timeout, no automatic retries
+  (a 429 delay is surfaced, never acted on; UI retries are manual and
+  allowlisted), Bearer key read server-side at call time, usage counters
+  extracted when present. Failures carry stable kinds — never provider
+  bodies, prompts, figures, or credentials.
+- Verification (`lib/ai/validateExplanation.ts`): citations must resolve
+  to the server ledger, every number must match a cited fact exactly
+  (integer-exact; directional difference facts also accept the absolute
+  magnitude with a direction word), and verdict/recommendation/provenance
+  vocabulary rejects the whole reply.
+- Route (`POST /api/explain`): recomputes figures from inputs (never
+  trusts client results), maps every AI-side failure to one sanitized
+  503, and emits opt-in diagnostics (`provider`, `model`, `api`,
+  workflow, outcome, stage timings, token counts — never figures or
+  secrets) when `HOMEWISE_AI_DIAGNOSTICS=1`.
+
+## Not verified (still open)
+
+- Rate limits, pricing, and the full error-code taxonomy.
+- Whether an official TypeScript SDK exists (the client is hand-rolled
+  `fetch`, deliberately dependency-free).
 
 ## Standing constraints (from PROJECT_RULES.md and ARCHITECTURE.md)
 

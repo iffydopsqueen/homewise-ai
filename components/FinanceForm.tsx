@@ -3,15 +3,16 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 
+import { buildAffordabilityRequest } from "../lib/api/affordabilityRequest";
 import { postJson } from "../lib/api/client";
 import type { AffordabilityResult } from "../lib/calc/affordability";
-import { parseDollarsToCents } from "../lib/format/parse";
 import type { AffordabilityFieldKey } from "../lib/session/store";
 import { useSession } from "../lib/session/store";
-import { affordabilityInputSchema } from "../lib/validation/calc";
 import type { ResolvedAffordabilityProvenance } from "../lib/validation/api";
 import AffordabilityResultView from "./AffordabilityResult";
+import Card from "./Card";
 import CurrencyField from "./CurrencyField";
+import ExplainSection from "./ExplainSection";
 
 const FIELDS: {
   key: AffordabilityFieldKey;
@@ -65,20 +66,6 @@ function isFieldKey(value: unknown): value is FieldKey {
   );
 }
 
-// Friendly field messages for parser failures. Matches on our own stable
-// message fragments and always falls back to a generic message, so a future
-// parser wording change degrades gracefully instead of breaking.
-function parseErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("exceeds maximum")) {
-    return "Amount is too large (maximum $10,000,000).";
-  }
-  if (message.includes("decimal places")) {
-    return "Use at most 2 decimal places.";
-  }
-  return "Enter a valid dollar amount, e.g. 8,500.50.";
-}
-
 export default function FinanceForm() {
   // Draft and result live in shared session context (single source of
   // truth); errors, banner, and submitting stay local and ephemeral.
@@ -113,39 +100,9 @@ export default function FinanceForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextErrors: Partial<Record<FieldKey, string>> = {};
-    const cents: Partial<Record<FieldKey, number>> = {};
-    for (const field of FIELDS) {
-      const raw = values[field.key];
-      if (raw.trim() === "") {
-        nextErrors[field.key] = "Enter an amount.";
-        continue;
-      }
-      try {
-        cents[field.key] = parseDollarsToCents(raw);
-      } catch (error) {
-        nextErrors[field.key] = parseErrorMessage(error);
-      }
-    }
-    if (Object.keys(nextErrors).length > 0) {
-      setFieldErrors(nextErrors);
-      return;
-    }
-    // Instant full-object check with the shared schema (server re-validates:
-    // this is feedback only). Catches take-home >= 1 cent, for example.
-    const checked = affordabilityInputSchema.safeParse(cents);
-    if (!checked.success) {
-      const mapped: Partial<Record<FieldKey, string>> = {};
-      for (const issue of checked.error.issues) {
-        const [first] = issue.path;
-        if (isFieldKey(first) && !(first in mapped)) {
-          mapped[first] =
-            first === "takeHomeMonthlyCents"
-              ? "Enter an income greater than $0."
-              : "Invalid value.";
-        }
-      }
-      setFieldErrors(mapped);
+    const built = buildAffordabilityRequest(values);
+    if (!built.ok) {
+      setFieldErrors(built.errors);
       return;
     }
     setFieldErrors({});
@@ -153,7 +110,7 @@ export default function FinanceForm() {
     setSubmitting(true);
     try {
       const response = await postJson<SuccessData>("/api/affordability", {
-        data: checked.data,
+        data: built.data,
       });
       if (!response.ok) {
         if (
@@ -186,58 +143,88 @@ export default function FinanceForm() {
 
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-12">
-      <form onSubmit={handleSubmit} noValidate aria-busy={submitting}>
-        <fieldset disabled={submitting} className="space-y-6">
-          <legend className="text-lg font-semibold text-slate-900">
-            Your finances
-          </legend>
-          {FIELDS.map((field) => (
-            <CurrencyField
-              key={field.key}
-              id={`finance-${field.key}`}
-              label={field.label}
-              description={field.description}
-              placeholder={field.placeholder}
-              value={values[field.key]}
-              error={fieldErrors[field.key]}
-              disabled={submitting}
-              onChange={(value) => handleChange(field.key, value)}
-            />
-          ))}
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-md bg-slate-900 px-5 py-2.5 font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
-            >
-              {submitting ? "Checking…" : "Check affordability"}
-            </button>
-            <button
-              type="button"
-              onClick={handleStartOver}
-              disabled={submitting}
-              className="rounded-md border border-slate-300 px-5 py-2.5 font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
-            >
-              Start over
-            </button>
-          </div>
-        </fieldset>
-      </form>
-      <div>
+      <Card id="affordability-inputs-heading" title="Financial inputs">
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          aria-busy={submitting}
+          className="mt-6"
+        >
+          <fieldset disabled={submitting} className="space-y-6">
+            <legend className="text-lg font-semibold text-t-ink">
+              Your finances
+            </legend>
+            {FIELDS.map((field) => (
+              <CurrencyField
+                key={field.key}
+                id={`finance-${field.key}`}
+                label={field.label}
+                description={field.description}
+                placeholder={field.placeholder}
+                value={values[field.key]}
+                error={fieldErrors[field.key]}
+                disabled={submitting}
+                onChange={(value) => handleChange(field.key, value)}
+              />
+            ))}
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-md bg-t-action px-5 py-2.5 font-semibold text-t-on-action hover:bg-t-action-hover disabled:opacity-60"
+              >
+                {submitting ? "Checking…" : "Check affordability"}
+              </button>
+              <button
+                type="button"
+                onClick={handleStartOver}
+                disabled={submitting}
+                className="rounded-md border border-t-line-strong px-5 py-2.5 font-semibold text-t-ink hover:bg-t-secondary-hover disabled:opacity-60"
+              >
+                Start over
+              </button>
+            </div>
+          </fieldset>
+        </form>
+      </Card>
+      <div
+        className={banner || result ? "mt-10 space-y-8 lg:mt-0" : undefined}
+      >
         {banner && (
           <p
             role="alert"
-            className="mt-6 rounded-md border border-slate-300 bg-slate-50 p-4 text-sm font-medium text-slate-900 lg:mt-0"
+            className="rounded-md border border-t-line-strong bg-t-surface-alt p-4 text-sm font-medium text-t-ink"
           >
             {banner}
           </p>
         )}
         <div aria-live="polite">
           {result && (
-            <AffordabilityResultView
-              result={result.result}
-              provenance={result.provenance}
-            />
+            <>
+              <AffordabilityResultView
+                result={result.result}
+                provenance={result.provenance}
+              />
+              <div className="mt-8">
+                <Card
+                  id="affordability-insights-heading"
+                  title="Financial insights"
+                >
+                  <ExplainSection
+                    buildPayload={() => {
+                      const built = buildAffordabilityRequest(values);
+                      return built.ok
+                        ? { workflow: "affordability", data: built.data }
+                        : null;
+                    }}
+                    visual={{
+                      workflow: "affordability",
+                      result: result.result,
+                    }}
+                  />
+                </Card>
+              </div>
+            </>
           )}
         </div>
       </div>

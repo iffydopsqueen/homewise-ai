@@ -6,10 +6,7 @@ import type { ReactNode } from "react";
 import type { AffordabilityResult } from "../lib/calc/affordability";
 import type { ComparisonResult } from "../lib/calc/compare";
 import type { TrueCostResult } from "../lib/calc/trueCost";
-import {
-  deltaDirection,
-  formatDeltaMagnitude,
-} from "../lib/format/delta";
+import { differenceSentence } from "../lib/format/delta";
 import { formatDollars } from "../lib/format/money";
 import {
   formatCushionMonths,
@@ -20,6 +17,7 @@ import {
   isTrueCostDraftEmpty,
   useSession,
 } from "../lib/session/store";
+import Card from "./Card";
 import ProvenanceBadge from "./ProvenanceBadge";
 
 // Live dashboard cards (restructuring P3). Read-only subscribers to the
@@ -64,17 +62,17 @@ const WORKFLOWS = [
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-x-3 py-1">
-      <dt className="text-sm text-slate-600">
+      <dt className="text-sm text-t-muted">
         {label} <ProvenanceBadge label="calculated" />
       </dt>
-      <dd className="shrink-0 text-sm font-semibold text-slate-900">{value}</dd>
+      <dd className="shrink-0 text-sm font-semibold text-t-ink">{value}</dd>
     </div>
   );
 }
 
 function AffordabilitySummary({ result }: { result: AffordabilityResult }) {
   return (
-    <dl className="mt-3 border-t border-slate-100 pt-2">
+    <dl className="mt-3 border-t border-t-line-soft pt-2">
       <SummaryRow
         label="Remaining monthly income"
         value={formatDollars(result.residualMonthlyCents)}
@@ -101,7 +99,7 @@ function AffordabilitySummary({ result }: { result: AffordabilityResult }) {
 
 function PropertySummary({ result }: { result: TrueCostResult }) {
   return (
-    <dl className="mt-3 border-t border-slate-100 pt-2">
+    <dl className="mt-3 border-t border-t-line-soft pt-2">
       <SummaryRow
         label="Total estimated monthly cost"
         value={formatDollars(result.totalMonthly)}
@@ -118,18 +116,16 @@ function PropertySummary({ result }: { result: TrueCostResult }) {
   );
 }
 
-// Neutral monthly difference in the result view's vocabulary, composed
-// from the exported delta formatters (display only, no calculation).
+// Neutral monthly difference in the result view's vocabulary: the shared
+// direction-aware sentence, so Dashboard and Compare always agree
+// (display only, no calculation).
 function monthlySentence(deltaMonthly: number): string {
-  if (deltaDirection(deltaMonthly) === "same") {
-    return "Both properties have the same estimated monthly cost.";
-  }
-  return `Property B is ${formatDeltaMagnitude(deltaMonthly)} ${deltaDirection(deltaMonthly)} per month than Property A.`;
+  return differenceSentence(deltaMonthly, "monthly");
 }
 
 function CompareSummary({ result }: { result: ComparisonResult }) {
   return (
-    <div className="mt-3 border-t border-slate-100 pt-2">
+    <div className="mt-3 border-t border-t-line-soft pt-2">
       <dl>
         <SummaryRow
           label="Property A estimated monthly cost"
@@ -140,12 +136,12 @@ function CompareSummary({ result }: { result: ComparisonResult }) {
           value={formatDollars(result.b.totalMonthly)}
         />
       </dl>
-      <p className="mt-2 text-sm text-slate-700">
+      <p className="mt-2 text-sm text-t-body">
         {monthlySentence(result.deltaMonthly)}{" "}
         <ProvenanceBadge label="calculated" />
       </p>
       {result.assumptionsDiffer && (
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-t-muted">
           Evaluated under different assumption sets.
         </p>
       )}
@@ -169,27 +165,20 @@ function WorkflowCard({
   children: ReactNode;
 }) {
   return (
-    <section
-      aria-labelledby={id}
-      className="flex flex-col rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
-    >
-      <h2 id={id} className="text-lg font-bold text-slate-900">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm text-slate-600">{description}</p>
-      <p className="mt-3 text-sm font-medium text-slate-700">
+    <Card id={id} title={title} description={description}>
+      <p className="mt-3 text-sm font-medium text-t-body">
         {STATUS_TEXT[status]}
       </p>
       {children}
       <p className="mt-4">
         <Link
           href={href}
-          className="text-sm font-semibold text-slate-900 underline hover:text-slate-700"
+          className="text-sm font-semibold text-t-ink underline hover:text-t-body"
         >
           Go to {title}
         </Link>
       </p>
-    </section>
+    </Card>
   );
 }
 

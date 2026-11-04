@@ -26,16 +26,16 @@ export default function EstimateToggle({
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
         aria-describedby={helperId}
-        className="mt-1 h-4 w-4 rounded border-slate-300 accent-slate-900"
+        className="mt-1 h-4 w-4 rounded border-t-line-strong accent-t-accent"
       />
       <div>
         <label
           htmlFor={id}
-          className="text-sm font-medium text-slate-900"
+          className="text-sm font-medium text-t-ink"
         >
           This is an estimate
         </label>
-        <p id={helperId} className="text-sm text-slate-600">
+        <p id={helperId} className="text-sm text-t-muted">
           {helperText}
         </p>
       </div>

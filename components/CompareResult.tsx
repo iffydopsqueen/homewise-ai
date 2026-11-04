@@ -5,7 +5,10 @@ import type {
   FixedComponentKey,
 } from "../lib/calc/compare";
 import type { TrueCostWarning } from "../lib/calc/trueCost";
-import { deltaDirection, formatDeltaMagnitude } from "../lib/format/delta";
+import {
+  categoryDifference,
+  differenceSentence,
+} from "../lib/format/delta";
 import { formatDollars } from "../lib/format/money";
 import {
   formatPercentFromBps,
@@ -16,6 +19,9 @@ import type {
   ProvenanceLabel,
   ResolvedTrueCostProvenance,
 } from "../lib/validation/api";
+import Card from "./Card";
+import ComparisonBars from "./ComparisonBars";
+import Kpi from "./Kpi";
 import ProvenanceBadge from "./ProvenanceBadge";
 
 interface Props {
@@ -61,26 +67,10 @@ const LABEL_WORDS: Record<ProvenanceLabel, string> = {
   assumption: "an assumption",
 };
 
-function monthlySentence(delta: number): string {
-  if (deltaDirection(delta) === "same") {
-    return "Both properties have the same estimated monthly cost.";
-  }
-  return `Property B is ${formatDeltaMagnitude(delta)} ${deltaDirection(delta)} per month than Property A.`;
-}
-
-function annualSentence(delta: number): string {
-  if (deltaDirection(delta) === "same") {
-    return "Both properties have the same estimated annual cost.";
-  }
-  return `Property B is ${formatDeltaMagnitude(delta)} ${deltaDirection(delta)} per year than Property A.`;
-}
-
-function upfrontSentence(delta: number): string {
-  if (deltaDirection(delta) === "same") {
-    return "Both properties require the same estimated upfront cash.";
-  }
-  return `Property B is ${formatDeltaMagnitude(delta)} ${deltaDirection(delta)} upfront than Property A.`;
-}
+// Cost-difference sentences use the shared direction-aware helper: the
+// higher-cost side is named explicitly with the absolute difference, so
+// no ordering reads as a confusing negative. Detailed tables below keep
+// the signed B-minus-A convention with explicit labels.
 
 // Difference-cell subtext from the Step 1 delta descriptor: the badge kind
 // comes from the helper, and the A/B values shown are passed in by the row.
@@ -105,10 +95,10 @@ function DeltaCell({
 }) {
   return (
     <>
-      <div className="font-semibold text-slate-900">
+      <div className="font-semibold text-t-ink">
         {formatDollars(delta)} <ProvenanceBadge label="calculated" />
       </div>
-      <div className="mt-0.5 text-xs text-slate-500">
+      <div className="mt-0.5 text-xs text-t-caption">
         {deltaSubtext(deltaKey, aText, bText)}
       </div>
     </>
@@ -208,10 +198,10 @@ function SideValue({
 }) {
   return (
     <>
-      <div className="font-semibold text-slate-900">
+      <div className="font-semibold text-t-ink">
         {value} {badge}
       </div>
-      {subtext && <div className="mt-0.5 text-xs text-slate-500">{subtext}</div>}
+      {subtext && <div className="mt-0.5 text-xs text-t-caption">{subtext}</div>}
     </>
   );
 }
@@ -221,9 +211,9 @@ function WarningsBox({ title, warnings }: { title: string; warnings: TrueCostWar
     return null;
   }
   return (
-    <div className="mt-4 rounded-md border border-slate-300 bg-slate-50 p-4">
-      <p className="text-sm font-semibold text-slate-900">{title}</p>
-      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+    <div className="mt-4 rounded-md border border-t-line-strong bg-t-surface-alt p-4">
+      <p className="text-sm font-semibold text-t-ink">{title}</p>
+      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-t-body">
         {warnings.map((warning) => (
           <li key={warning}>{WARNING_MESSAGES[warning]}</li>
         ))}
@@ -310,461 +300,582 @@ export default function CompareResultView({
   ];
 
   return (
-    <section aria-label="Property comparison results" className="mt-10 lg:mt-0">
-      <h2 className="text-xl font-bold text-slate-900">Property comparison</h2>
-      <p className="mt-1 text-sm text-slate-600">
-        Side-by-side estimate from the figures entered for each property.
-      </p>
-      <div className="mt-4 space-y-1 text-base font-medium text-slate-900">
-        <p>{monthlySentence(result.deltaMonthly)}</p>
-        <p>{annualSentence(result.deltaAnnual)}</p>
-        <p>{upfrontSentence(result.deltaUpfront)}</p>
-      </div>
-
-      <h3 className="mt-6 text-base font-semibold text-slate-900">
-        Figures compared
-      </h3>
-      <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[36rem] border-collapse text-sm">
-          <caption className="sr-only">
-            Input figures entered for Property A and Property B
-          </caption>
-          <thead>
-            <tr className="border-b border-slate-200 text-left">
-              <th scope="col" className="p-4 font-semibold text-slate-900">
-                Figure
-              </th>
-              <th scope="col" className="p-4 font-semibold text-slate-900">
-                Property A
-              </th>
-              <th scope="col" className="p-4 font-semibold text-slate-900">
-                Property B
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {inputRows.map((row) => (
-              <tr key={row.label} className="border-b border-slate-100 last:border-b-0">
-                <th scope="row" className="p-4 font-normal text-slate-600">
-                  {row.label}
-                </th>
-                <td className="p-4">
-                  <SideValue value={row.a} badge={row.badgeA} />
-                </td>
-                <td className="p-4">
-                  <SideValue value={row.b} badge={row.badgeB} />
-                </td>
-              </tr>
+    <Card
+      id="compare-results-heading"
+      title="Property comparison"
+      description="Side-by-side estimate from the figures entered for each property."
+      focusableHeading
+    >
+      <div className="mt-6 space-y-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              { side: "A" as const, property: result.a },
+              { side: "B" as const, property: result.b },
+            ]
+          ).map(({ side, property }) => (
+            <div
+              key={side}
+              className="rounded-lg bg-t-surface-alt p-4"
+            >
+              <p className="text-sm font-semibold text-t-ink">
+                Property {side}
+              </p>
+              <div className="mt-3 space-y-4">
+                <Kpi
+                  plain
+                  variant="hero"
+                  label="Estimated monthly cost"
+                  value={formatDollars(property.totalMonthly)}
+                />
+                <Kpi
+                  plain
+                  label="Annual cost"
+                  value={`${formatDollars(property.totalAnnual)} per year`}
+                />
+                <Kpi
+                  plain
+                  label="Estimated upfront cash"
+                  value={formatDollars(
+                    property.estimatedUpfrontCashCents,
+                  )}
+                  caption={
+                    property.closingCostsProvided
+                      ? "Includes down payment and closing costs"
+                      : "Down payment only — no closing costs entered"
+                  }
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <section aria-labelledby="compare-monthly-bars-heading">
+          <h3
+            id="compare-monthly-bars-heading"
+            className="text-base font-semibold text-t-ink"
+          >
+            Monthly cost comparison
+          </h3>
+          <div className="mt-3">
+            <ComparisonBars
+              aLabel="Property A"
+              aDisplayValue={formatDollars(result.a.totalMonthly)}
+              aValue={result.a.totalMonthly}
+              bLabel="Property B"
+              bDisplayValue={formatDollars(result.b.totalMonthly)}
+              bValue={result.b.totalMonthly}
+              summary={`Property A ${formatDollars(result.a.totalMonthly)} per month, Property B ${formatDollars(result.b.totalMonthly)} per month`}
+            />
+          </div>
+        </section>
+        <section aria-labelledby="compare-differences-heading">
+          <h3
+            id="compare-differences-heading"
+            className="text-base font-semibold text-t-ink"
+          >
+            Cost differences
+          </h3>
+          <div className="mt-2 space-y-1 text-base font-medium text-t-ink">
+            <p>{differenceSentence(result.deltaMonthly, "monthly")}</p>
+            <p>{differenceSentence(result.deltaAnnual, "annual")}</p>
+            <p>{differenceSentence(result.deltaUpfront, "upfront")}</p>
+          </div>
+        </section>
+        <section aria-labelledby="compare-categories-heading">
+          <h3
+            id="compare-categories-heading"
+            className="text-base font-semibold text-t-ink"
+          >
+            Cost categories
+          </h3>
+          <p className="mt-1 text-sm text-t-muted">
+            Each difference names the property with the higher cost.
+          </p>
+          <div className="mt-2">
+            {result.fixed.map((component) => (
+              <div
+                key={component.key}
+                className="border-b border-t-line-soft py-3 last:border-b-0"
+              >
+                <p className="text-sm font-medium text-t-ink">
+                  {FIXED_LABELS[component.key]}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                  <span>
+                    <span className="text-t-muted">Property A </span>
+                    <span className="font-semibold text-t-ink tabular-nums">
+                      {formatDollars(component.a)}
+                    </span>
+                  </span>
+                  <span>
+                    <span className="text-t-muted">Property B </span>
+                    <span className="font-semibold text-t-ink tabular-nums">
+                      {formatDollars(component.b)}
+                    </span>
+                  </span>
+                  <span className="font-semibold text-t-ink">
+                    {categoryDifference(component.delta)}
+                  </span>
+                </div>
+              </div>
             ))}
-            <tr className="border-b border-slate-100 last:border-b-0">
-              <th scope="row" className="p-4 font-normal text-slate-600">
-                PMI
-              </th>
-              <td className="p-4">
-                {inputsA.pmiMonthlyCents === undefined ? (
-                  <SideValue value="Not entered" />
-                ) : (
-                  <SideValue
-                    value={formatDollars(inputsA.pmiMonthlyCents)}
-                    badge={<ProvenanceBadge label={provenanceA.pmiMonthlyCents} />}
-                  />
-                )}
-              </td>
-              <td className="p-4">
-                {inputsB.pmiMonthlyCents === undefined ? (
-                  <SideValue value="Not entered" />
-                ) : (
-                  <SideValue
-                    value={formatDollars(inputsB.pmiMonthlyCents)}
-                    badge={<ProvenanceBadge label={provenanceB.pmiMonthlyCents} />}
-                  />
-                )}
-              </td>
-            </tr>
-            <tr className="border-b border-slate-100 last:border-b-0">
-              <th scope="row" className="p-4 font-normal text-slate-600">
-                Closing costs (one-time)
-              </th>
-              <td className="p-4">
-                {inputsA.closingCostsCents === undefined ||
-                provenanceA.closingCostsCents === undefined ? (
-                  <SideValue value="Not entered" />
-                ) : (
-                  <SideValue
-                    value={formatDollars(inputsA.closingCostsCents)}
-                    badge={
-                      <ProvenanceBadge label={provenanceA.closingCostsCents} />
-                    }
-                  />
-                )}
-              </td>
-              <td className="p-4">
-                {inputsB.closingCostsCents === undefined ||
-                provenanceB.closingCostsCents === undefined ? (
-                  <SideValue value="Not entered" />
-                ) : (
-                  <SideValue
-                    value={formatDollars(inputsB.closingCostsCents)}
-                    badge={
-                      <ProvenanceBadge label={provenanceB.closingCostsCents} />
-                    }
-                  />
-                )}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          </div>
+          <p className="mt-3 text-sm text-t-muted">
+            Other monthly costs are compared line by line in the detailed
+            tables below.
+          </p>
+        </section>
       </div>
 
-      <h3 className="mt-6 text-base font-semibold text-slate-900">
-        Monthly breakdown
-      </h3>
-      <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[44rem] border-collapse text-sm">
-          <caption className="sr-only">
-            Monthly cost components for Property A and Property B with
-            differences
-          </caption>
-          <thead>
-            <tr className="border-b border-slate-200 text-left">
-              <th scope="col" className="p-4 font-semibold text-slate-900">
-                Cost
-              </th>
-              <th scope="col" className="p-4 font-semibold text-slate-900">
-                Property A
-              </th>
-              <th scope="col" className="p-4 font-semibold text-slate-900">
-                Property B
-              </th>
-              <th scope="col" className="p-4 font-semibold text-slate-900">
-                Difference (B − A)
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.fixed.map((entry) => {
-              const absentA =
-                entry.key === "pmi" && inputsA.pmiMonthlyCents === undefined;
-              const absentB =
-                entry.key === "pmi" && inputsB.pmiMonthlyCents === undefined;
-              const aText = absentA ? "Not entered" : formatDollars(entry.a);
-              const bText = absentB ? "Not entered" : formatDollars(entry.b);
-              return (
-                <tr
-                  key={entry.key}
-                  className="border-b border-slate-100 last:border-b-0"
-                >
-                  <th scope="row" className="p-4 font-normal text-slate-600">
-                    {FIXED_LABELS[entry.key]}
+      <details className="mt-6 border-t border-t-line pt-4">
+        <summary className="w-fit cursor-pointer text-sm font-semibold text-t-ink underline">
+          View detailed breakdown
+        </summary>
+          <h3 className="mt-6 text-base font-semibold text-t-ink">
+            Figures compared
+          </h3>
+        <div className="mt-2 overflow-x-auto rounded-lg border border-t-line bg-t-surface shadow-sm">
+          <table className="w-full min-w-[36rem] border-collapse text-sm">
+            <caption className="sr-only">
+              Input figures entered for Property A and Property B
+            </caption>
+            <thead>
+              <tr className="border-b border-t-line text-left">
+                <th scope="col" className="p-4 font-semibold text-t-ink">
+                  Figure
+                </th>
+                <th scope="col" className="p-4 font-semibold text-t-ink">
+                  Property A
+                </th>
+                <th scope="col" className="p-4 font-semibold text-t-ink">
+                  Property B
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {inputRows.map((row) => (
+                <tr key={row.label} className="border-b border-t-line-soft last:border-b-0">
+                  <th scope="row" className="p-4 font-normal text-t-muted">
+                    {row.label}
                   </th>
                   <td className="p-4">
-                    {absentA ? (
-                      <SideValue value="Not entered" />
-                    ) : entry.key === "hoa" ? (
-                      <SideValue
-                        value={aText}
-                        badge={
-                          <ProvenanceBadge label={provenanceA.hoaMonthlyCents} />
-                        }
-                      />
-                    ) : entry.key === "pmi" ? (
-                      <SideValue
-                        value={aText}
-                        badge={
-                          <ProvenanceBadge label={provenanceA.pmiMonthlyCents} />
-                        }
-                      />
-                    ) : (
-                      <SideValue value={aText} />
-                    )}
+                    <SideValue value={row.a} badge={row.badgeA} />
                   </td>
                   <td className="p-4">
-                    {absentB ? (
-                      <SideValue value="Not entered" />
-                    ) : entry.key === "hoa" ? (
-                      <SideValue
-                        value={bText}
-                        badge={
-                          <ProvenanceBadge label={provenanceB.hoaMonthlyCents} />
-                        }
-                      />
-                    ) : entry.key === "pmi" ? (
-                      <SideValue
-                        value={bText}
-                        badge={
-                          <ProvenanceBadge label={provenanceB.pmiMonthlyCents} />
-                        }
-                      />
-                    ) : (
-                      <SideValue value={bText} />
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <DeltaCell
-                      deltaKey={`fixed.${entry.key}`}
-                      delta={entry.delta}
-                      aText={aText}
-                      bText={bText}
-                    />
+                    <SideValue value={row.b} badge={row.badgeB} />
                   </td>
                 </tr>
-              );
-            })}
-            {/* No other-costs subtotal row: the API provides per-line
-                A/B/deltas (shown grouped below) but no monthlyOther delta,
-                and the browser must not compute one. */}
-            <tr className="border-b border-slate-100">
-              <th scope="row" className="p-4 font-semibold text-slate-900">
-                Total monthly
-              </th>
-              <td className="p-4">
-                <SideValue value={formatDollars(result.a.totalMonthly)} />
-              </td>
-              <td className="p-4">
-                <SideValue value={formatDollars(result.b.totalMonthly)} />
-              </td>
-              <td className="p-4">
-                <DeltaCell
-                  deltaKey="totalMonthly"
-                  delta={result.deltaMonthly}
-                  aText={formatDollars(result.a.totalMonthly)}
-                  bText={formatDollars(result.b.totalMonthly)}
-                />
-              </td>
-            </tr>
-            <tr className="border-b border-slate-100">
-              <th scope="row" className="p-4 font-normal text-slate-600">
-                Annual total
-              </th>
-              <td className="p-4">
-                <SideValue value={formatDollars(result.a.totalAnnual)} />
-              </td>
-              <td className="p-4">
-                <SideValue value={formatDollars(result.b.totalAnnual)} />
-              </td>
-              <td className="p-4">
-                <DeltaCell
-                  deltaKey="totalAnnual"
-                  delta={result.deltaAnnual}
-                  aText={formatDollars(result.a.totalAnnual)}
-                  bText={formatDollars(result.b.totalAnnual)}
-                />
-              </td>
-            </tr>
-            <tr className="border-b border-slate-100 last:border-b-0">
-              <th scope="row" className="p-4 font-normal text-slate-600">
-                Estimated upfront cash
-              </th>
-              <td className="p-4">
-                <SideValue
-                  value={formatDollars(result.a.estimatedUpfrontCashCents)}
-                  subtext={
-                    result.a.closingCostsProvided
-                      ? "Down payment + closing costs"
-                      : "Down payment only"
-                  }
-                />
-              </td>
-              <td className="p-4">
-                <SideValue
-                  value={formatDollars(result.b.estimatedUpfrontCashCents)}
-                  subtext={
-                    result.b.closingCostsProvided
-                      ? "Down payment + closing costs"
-                      : "Down payment only"
-                  }
-                />
-              </td>
-              <td className="p-4">
-                <DeltaCell
-                  deltaKey="upfront"
-                  delta={result.deltaUpfront}
-                  aText={formatDollars(result.a.estimatedUpfrontCashCents)}
-                  bText={formatDollars(result.b.estimatedUpfrontCashCents)}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-2 text-xs text-slate-500">
-        Differences show Property B minus Property A. A negative difference
-        means Property B is lower for that row.
-      </p>
-
-      <h3 className="mt-6 text-base font-semibold text-slate-900">
-        Other monthly costs
-      </h3>
-      {matched.length === 0 && onlyA.length === 0 && onlyB.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-600">
-          No other costs entered for either property.
-        </p>
-      ) : (
-        <div className="mt-2 space-y-4">
-          {matched.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table className="w-full min-w-[44rem] border-collapse text-sm">
-                <caption className="sr-only">
-                  Other costs present for both properties
-                </caption>
-                <thead>
-                  <tr className="border-b border-slate-200 text-left">
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Matched item
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Property A
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Property B
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Difference (B − A)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {matched.map((line) => (
-                    <tr
-                      key={line.key}
-                      className="border-b border-slate-100 last:border-b-0"
-                    >
-                      <th scope="row" className="p-4 font-normal text-slate-600">
-                        {line.labelA === line.labelB
-                          ? (line.labelA ?? line.key)
-                          : `A: ${line.labelA ?? line.key} · B: ${line.labelB ?? line.key}`}
-                      </th>
-                      <td className="p-4">
-                        <SideValue value={formatDollars(line.a)} />
-                      </td>
-                      <td className="p-4">
-                        <SideValue value={formatDollars(line.b)} />
-                      </td>
-                      <td className="p-4">
-                        <DeltaCell
-                          deltaKey={`otherLines.${line.key}`}
-                          delta={line.delta}
-                          aText={formatDollars(line.a)}
-                          bText={formatDollars(line.b)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {onlyA.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table className="w-full min-w-[44rem] border-collapse text-sm">
-                <caption className="sr-only">
-                  Other costs present only for Property A
-                </caption>
-                <thead>
-                  <tr className="border-b border-slate-200 text-left">
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Only in Property A
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Property A
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Property B
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Difference (B − A)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {onlyA.map((line) => (
-                    <tr
-                      key={line.key}
-                      className="border-b border-slate-100 last:border-b-0"
-                    >
-                      <th scope="row" className="p-4 font-normal text-slate-600">
-                        {line.labelA ?? line.key}
-                      </th>
-                      <td className="p-4">
-                        <SideValue value={formatDollars(line.a)} />
-                      </td>
-                      <td className="p-4">
-                        <SideValue value="—" />
-                      </td>
-                      <td className="p-4">
-                        <DeltaCell
-                          deltaKey={`otherLines.${line.key}`}
-                          delta={line.delta}
-                          aText={formatDollars(line.a)}
-                          bText="no entry"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {onlyB.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table className="w-full min-w-[44rem] border-collapse text-sm">
-                <caption className="sr-only">
-                  Other costs present only for Property B
-                </caption>
-                <thead>
-                  <tr className="border-b border-slate-200 text-left">
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Only in Property B
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Property A
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Property B
-                    </th>
-                    <th scope="col" className="p-4 font-semibold text-slate-900">
-                      Difference (B − A)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {onlyB.map((line) => (
-                    <tr
-                      key={line.key}
-                      className="border-b border-slate-100 last:border-b-0"
-                    >
-                      <th scope="row" className="p-4 font-normal text-slate-600">
-                        {line.labelB ?? line.key}
-                      </th>
-                      <td className="p-4">
-                        <SideValue value="—" />
-                      </td>
-                      <td className="p-4">
-                        <SideValue value={formatDollars(line.b)} />
-                      </td>
-                      <td className="p-4">
-                        <DeltaCell
-                          deltaKey={`otherLines.${line.key}`}
-                          delta={line.delta}
-                          aText="no entry"
-                          bText={formatDollars(line.b)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+              ))}
+              <tr className="border-b border-t-line-soft last:border-b-0">
+                <th scope="row" className="p-4 font-normal text-t-muted">
+                  PMI
+                </th>
+                <td className="p-4">
+                  {inputsA.pmiMonthlyCents === undefined ? (
+                    <SideValue value="Not entered" />
+                  ) : (
+                    <SideValue
+                      value={formatDollars(inputsA.pmiMonthlyCents)}
+                      badge={<ProvenanceBadge label={provenanceA.pmiMonthlyCents} />}
+                    />
+                  )}
+                </td>
+                <td className="p-4">
+                  {inputsB.pmiMonthlyCents === undefined ? (
+                    <SideValue value="Not entered" />
+                  ) : (
+                    <SideValue
+                      value={formatDollars(inputsB.pmiMonthlyCents)}
+                      badge={<ProvenanceBadge label={provenanceB.pmiMonthlyCents} />}
+                    />
+                  )}
+                </td>
+              </tr>
+              <tr className="border-b border-t-line-soft last:border-b-0">
+                <th scope="row" className="p-4 font-normal text-t-muted">
+                  Closing costs (one-time)
+                </th>
+                <td className="p-4">
+                  {inputsA.closingCostsCents === undefined ||
+                  provenanceA.closingCostsCents === undefined ? (
+                    <SideValue value="Not entered" />
+                  ) : (
+                    <SideValue
+                      value={formatDollars(inputsA.closingCostsCents)}
+                      badge={
+                        <ProvenanceBadge label={provenanceA.closingCostsCents} />
+                      }
+                    />
+                  )}
+                </td>
+                <td className="p-4">
+                  {inputsB.closingCostsCents === undefined ||
+                  provenanceB.closingCostsCents === undefined ? (
+                    <SideValue value="Not entered" />
+                  ) : (
+                    <SideValue
+                      value={formatDollars(inputsB.closingCostsCents)}
+                      badge={
+                        <ProvenanceBadge label={provenanceB.closingCostsCents} />
+                      }
+                    />
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      )}
+
+        <h3 className="mt-6 text-base font-semibold text-t-ink">
+          Monthly breakdown
+        </h3>
+        <div className="mt-2 overflow-x-auto rounded-lg border border-t-line bg-t-surface shadow-sm">
+          <table className="w-full min-w-[44rem] border-collapse text-sm">
+            <caption className="sr-only">
+              Monthly cost components for Property A and Property B with
+              differences
+            </caption>
+            <thead>
+              <tr className="border-b border-t-line text-left">
+                <th scope="col" className="p-4 font-semibold text-t-ink">
+                  Cost
+                </th>
+                <th scope="col" className="p-4 font-semibold text-t-ink">
+                  Property A
+                </th>
+                <th scope="col" className="p-4 font-semibold text-t-ink">
+                  Property B
+                </th>
+                <th scope="col" className="p-4 font-semibold text-t-ink">
+                  Difference (B − A)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.fixed.map((entry) => {
+                const absentA =
+                  entry.key === "pmi" && inputsA.pmiMonthlyCents === undefined;
+                const absentB =
+                  entry.key === "pmi" && inputsB.pmiMonthlyCents === undefined;
+                const aText = absentA ? "Not entered" : formatDollars(entry.a);
+                const bText = absentB ? "Not entered" : formatDollars(entry.b);
+                return (
+                  <tr
+                    key={entry.key}
+                    className="border-b border-t-line-soft last:border-b-0"
+                  >
+                    <th scope="row" className="p-4 font-normal text-t-muted">
+                      {FIXED_LABELS[entry.key]}
+                    </th>
+                    <td className="p-4">
+                      {absentA ? (
+                        <SideValue value="Not entered" />
+                      ) : entry.key === "hoa" ? (
+                        <SideValue
+                          value={aText}
+                          badge={
+                            <ProvenanceBadge label={provenanceA.hoaMonthlyCents} />
+                          }
+                        />
+                      ) : entry.key === "pmi" ? (
+                        <SideValue
+                          value={aText}
+                          badge={
+                            <ProvenanceBadge label={provenanceA.pmiMonthlyCents} />
+                          }
+                        />
+                      ) : (
+                        <SideValue value={aText} />
+                      )}
+                    </td>
+                    <td className="p-4">
+                      {absentB ? (
+                        <SideValue value="Not entered" />
+                      ) : entry.key === "hoa" ? (
+                        <SideValue
+                          value={bText}
+                          badge={
+                            <ProvenanceBadge label={provenanceB.hoaMonthlyCents} />
+                          }
+                        />
+                      ) : entry.key === "pmi" ? (
+                        <SideValue
+                          value={bText}
+                          badge={
+                            <ProvenanceBadge label={provenanceB.pmiMonthlyCents} />
+                          }
+                        />
+                      ) : (
+                        <SideValue value={bText} />
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <DeltaCell
+                        deltaKey={`fixed.${entry.key}`}
+                        delta={entry.delta}
+                        aText={aText}
+                        bText={bText}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* No other-costs subtotal row: the API provides per-line
+                  A/B/deltas (shown grouped below) but no monthlyOther delta,
+                  and the browser must not compute one. */}
+              <tr className="border-b border-t-line-soft">
+                <th scope="row" className="p-4 font-semibold text-t-ink">
+                  Total monthly
+                </th>
+                <td className="p-4">
+                  <SideValue value={formatDollars(result.a.totalMonthly)} />
+                </td>
+                <td className="p-4">
+                  <SideValue value={formatDollars(result.b.totalMonthly)} />
+                </td>
+                <td className="p-4">
+                  <DeltaCell
+                    deltaKey="totalMonthly"
+                    delta={result.deltaMonthly}
+                    aText={formatDollars(result.a.totalMonthly)}
+                    bText={formatDollars(result.b.totalMonthly)}
+                  />
+                </td>
+              </tr>
+              <tr className="border-b border-t-line-soft">
+                <th scope="row" className="p-4 font-normal text-t-muted">
+                  Annual total
+                </th>
+                <td className="p-4">
+                  <SideValue value={formatDollars(result.a.totalAnnual)} />
+                </td>
+                <td className="p-4">
+                  <SideValue value={formatDollars(result.b.totalAnnual)} />
+                </td>
+                <td className="p-4">
+                  <DeltaCell
+                    deltaKey="totalAnnual"
+                    delta={result.deltaAnnual}
+                    aText={formatDollars(result.a.totalAnnual)}
+                    bText={formatDollars(result.b.totalAnnual)}
+                  />
+                </td>
+              </tr>
+              <tr className="border-b border-t-line-soft last:border-b-0">
+                <th scope="row" className="p-4 font-normal text-t-muted">
+                  Estimated upfront cash
+                </th>
+                <td className="p-4">
+                  <SideValue
+                    value={formatDollars(result.a.estimatedUpfrontCashCents)}
+                    subtext={
+                      result.a.closingCostsProvided
+                        ? "Down payment + closing costs"
+                        : "Down payment only"
+                    }
+                  />
+                </td>
+                <td className="p-4">
+                  <SideValue
+                    value={formatDollars(result.b.estimatedUpfrontCashCents)}
+                    subtext={
+                      result.b.closingCostsProvided
+                        ? "Down payment + closing costs"
+                        : "Down payment only"
+                    }
+                  />
+                </td>
+                <td className="p-4">
+                  <DeltaCell
+                    deltaKey="upfront"
+                    delta={result.deltaUpfront}
+                    aText={formatDollars(result.a.estimatedUpfrontCashCents)}
+                    bText={formatDollars(result.b.estimatedUpfrontCashCents)}
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-xs text-t-caption">
+          Differences show Property B minus Property A. A negative difference
+          means Property B is lower for that row.
+        </p>
+
+        <h3 className="mt-6 text-base font-semibold text-t-ink">
+          Other monthly costs
+        </h3>
+        {matched.length === 0 && onlyA.length === 0 && onlyB.length === 0 ? (
+          <p className="mt-2 text-sm text-t-muted">
+            No other costs entered for either property.
+          </p>
+        ) : (
+          <div className="mt-2 space-y-4">
+            {matched.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-t-line bg-t-surface shadow-sm">
+                <table className="w-full min-w-[44rem] border-collapse text-sm">
+                  <caption className="sr-only">
+                    Other costs present for both properties
+                  </caption>
+                  <thead>
+                    <tr className="border-b border-t-line text-left">
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Matched item
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Property A
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Property B
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Difference (B − A)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matched.map((line) => (
+                      <tr
+                        key={line.key}
+                        className="border-b border-t-line-soft last:border-b-0"
+                      >
+                        <th scope="row" className="p-4 font-normal text-t-muted">
+                          {line.labelA === line.labelB
+                            ? (line.labelA ?? line.key)
+                            : `A: ${line.labelA ?? line.key} · B: ${line.labelB ?? line.key}`}
+                        </th>
+                        <td className="p-4">
+                          <SideValue value={formatDollars(line.a)} />
+                        </td>
+                        <td className="p-4">
+                          <SideValue value={formatDollars(line.b)} />
+                        </td>
+                        <td className="p-4">
+                          <DeltaCell
+                            deltaKey={`otherLines.${line.key}`}
+                            delta={line.delta}
+                            aText={formatDollars(line.a)}
+                            bText={formatDollars(line.b)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {onlyA.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-t-line bg-t-surface shadow-sm">
+                <table className="w-full min-w-[44rem] border-collapse text-sm">
+                  <caption className="sr-only">
+                    Other costs present only for Property A
+                  </caption>
+                  <thead>
+                    <tr className="border-b border-t-line text-left">
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Only in Property A
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Property A
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Property B
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Difference (B − A)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {onlyA.map((line) => (
+                      <tr
+                        key={line.key}
+                        className="border-b border-t-line-soft last:border-b-0"
+                      >
+                        <th scope="row" className="p-4 font-normal text-t-muted">
+                          {line.labelA ?? line.key}
+                        </th>
+                        <td className="p-4">
+                          <SideValue value={formatDollars(line.a)} />
+                        </td>
+                        <td className="p-4">
+                          <SideValue value="—" />
+                        </td>
+                        <td className="p-4">
+                          <DeltaCell
+                            deltaKey={`otherLines.${line.key}`}
+                            delta={line.delta}
+                            aText={formatDollars(line.a)}
+                            bText="no entry"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {onlyB.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-t-line bg-t-surface shadow-sm">
+                <table className="w-full min-w-[44rem] border-collapse text-sm">
+                  <caption className="sr-only">
+                    Other costs present only for Property B
+                  </caption>
+                  <thead>
+                    <tr className="border-b border-t-line text-left">
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Only in Property B
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Property A
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Property B
+                      </th>
+                      <th scope="col" className="p-4 font-semibold text-t-ink">
+                        Difference (B − A)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {onlyB.map((line) => (
+                      <tr
+                        key={line.key}
+                        className="border-b border-t-line-soft last:border-b-0"
+                      >
+                        <th scope="row" className="p-4 font-normal text-t-muted">
+                          {line.labelB ?? line.key}
+                        </th>
+                        <td className="p-4">
+                          <SideValue value="—" />
+                        </td>
+                        <td className="p-4">
+                          <SideValue value={formatDollars(line.b)} />
+                        </td>
+                        <td className="p-4">
+                          <DeltaCell
+                            deltaKey={`otherLines.${line.key}`}
+                            delta={line.delta}
+                            aText="no entry"
+                            bText={formatDollars(line.b)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </details>
 
       {notes.length > 0 && (
-        <div className="mt-6 rounded-md border border-slate-300 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-900">
+        <div className="mt-6 rounded-md border border-t-line-strong bg-t-surface-alt p-4">
+          <p className="text-sm font-semibold text-t-ink">
             About this comparison
           </p>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-t-body">
             {notes.map((note) => (
               <li key={note}>{note}</li>
             ))}
@@ -775,13 +886,13 @@ export default function CompareResultView({
       <WarningsBox title="Property A notes" warnings={result.a.warnings} />
       <WarningsBox title="Property B notes" warnings={result.b.warnings} />
 
-      <p className="mt-3 text-sm text-slate-600">
+      <p className="mt-3 text-sm text-t-muted">
         Calculated figures above depend on the amounts entered for each
         property. Upfront figures are this app&apos;s estimates, not a
         lender&apos;s cash-to-close amounts. This comparison does not rank
         the properties, recommend either one, or constitute a lending
         decision or financial advice.
       </p>
-    </section>
+    </Card>
   );
 }

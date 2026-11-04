@@ -33,15 +33,15 @@ export default function OtherCostsEditor({
   const atCap = lines.length >= MAX_LINES;
   return (
     <fieldset disabled={disabled}>
-      <legend className="text-sm font-semibold text-slate-900">
+      <legend className="text-sm font-semibold text-t-ink">
         Other monthly costs
       </legend>
-      <p className="mt-1 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-t-muted">
         Optional extras, such as lawn care or a security system. Each entry
         needs a label and a monthly amount.
       </p>
       {lines.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-600">
+        <p className="mt-3 text-sm text-t-muted">
           No other monthly costs added.
         </p>
       ) : (
@@ -55,13 +55,13 @@ export default function OtherCostsEditor({
             return (
               <div
                 key={line.key}
-                className="rounded-md border border-slate-200 p-4"
+                className="rounded-md border border-t-line p-4"
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label
                       htmlFor={`other-label-${line.key}`}
-                      className="block text-sm font-semibold text-slate-900"
+                      className="block text-sm font-semibold text-t-ink"
                     >
                       Label
                     </label>
@@ -86,12 +86,12 @@ export default function OtherCostsEditor({
                           ? `other-label-${line.key}-error`
                           : undefined
                       }
-                      className="mt-2 block w-full rounded-md border border-slate-300 py-2 pl-3 pr-3 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-slate-100"
+                      className="mt-2 block w-full rounded-md border border-t-line-strong bg-t-field py-2 pl-3 pr-3 text-t-ink placeholder:text-t-placeholder focus:border-t-focus focus:outline-none focus:ring-1 focus:ring-t-focus disabled:bg-t-field-disabled"
                     />
                     {errors.label && (
                       <p
                         id={`other-label-${line.key}-error`}
-                        className="mt-1 text-sm font-medium text-red-700"
+                        className="mt-1 text-sm font-medium text-t-error"
                       >
                         {errors.label}
                       </p>
@@ -114,7 +114,7 @@ export default function OtherCostsEditor({
                   type="button"
                   onClick={() => onRemoveLine(index)}
                   disabled={disabled}
-                  className="mt-3 text-sm font-medium text-slate-700 underline hover:text-slate-900 disabled:opacity-60"
+                  className="mt-3 text-sm font-medium text-t-body underline hover:text-t-ink disabled:opacity-60"
                 >
                   {removeName}
                 </button>
@@ -128,11 +128,11 @@ export default function OtherCostsEditor({
           type="button"
           onClick={onAddLine}
           disabled={disabled || atCap}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
+          className="rounded-md border border-t-line-strong px-4 py-2 text-sm font-semibold text-t-ink hover:bg-t-secondary-hover disabled:opacity-60"
         >
           Add another cost
         </button>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-t-muted">
           {atCap ? "Line limit reached (100)." : "Up to 100 lines."}
         </p>
       </div>

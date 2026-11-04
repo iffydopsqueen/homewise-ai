@@ -6,22 +6,22 @@ const STYLES: Record<DisplayLabel, { text: string; title: string; className: str
   "user-provided": {
     text: "User-provided",
     title: "Figure you entered",
-    className: "bg-slate-100 text-slate-800",
+    className: "bg-t-prov-bg text-t-prov-ink",
   },
   estimate: {
     text: "Estimate",
     title: "Figure you marked as an estimate",
-    className: "bg-sky-100 text-sky-800",
+    className: "bg-t-est-bg text-t-est-ink",
   },
   assumption: {
     text: "Assumption",
     title: "Modeling assumption, not a measured figure",
-    className: "bg-amber-100 text-amber-800",
+    className: "bg-t-warn-bg text-t-warn-ink",
   },
   calculated: {
     text: "Calculated",
     title: "Computed by the app from the figures above",
-    className: "bg-slate-800 text-white",
+    className: "bg-t-calc-bg text-t-calc-ink",
   },
 };
 

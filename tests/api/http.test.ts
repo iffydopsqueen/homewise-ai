@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
 import {
+  aiUnavailableResponse,
   internalErrorResponse,
   invalidJsonResponse,
   methodNotAllowedHandler,
@@ -65,6 +66,19 @@ describe("response envelopes", () => {
     expect("issues" in internal.body.error).toBe(false);
   });
 
+  it("builds a stable AI-unavailable fail-soft response", () => {
+    const response = aiUnavailableResponse();
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      ok: false,
+      error: {
+        code: "ai_unavailable",
+        message:
+          "AI explanations are unavailable right now. Your calculations are unaffected.",
+      },
+    });
+  });
+
   it("never logs while building responses", () => {
     const spies = (["log", "error", "warn", "info", "debug"] as const).map(
       (level) => vi.spyOn(console, level).mockImplementation(() => {}),
@@ -76,6 +90,7 @@ describe("response envelopes", () => {
       invalidJsonResponse();
       methodNotAllowedResponse();
       internalErrorResponse();
+      aiUnavailableResponse();
       for (const spy of spies) {
         expect(spy).not.toHaveBeenCalled();
       }

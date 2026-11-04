@@ -27,11 +27,11 @@ export default function PercentField({
     <div>
       <label
         htmlFor={id}
-        className="block text-sm font-semibold text-slate-900"
+        className="block text-sm font-semibold text-t-ink"
       >
         {label}
       </label>
-      <p id={descriptionId} className="mt-1 text-sm text-slate-600">
+      <p id={descriptionId} className="mt-1 text-sm text-t-muted">
         {description}
       </p>
       <div className="relative mt-2">
@@ -47,17 +47,17 @@ export default function PercentField({
           onChange={(event) => onChange(event.target.value)}
           aria-invalid={error !== undefined}
           aria-describedby={error ? `${descriptionId} ${errorId}` : descriptionId}
-          className="block w-full rounded-md border border-slate-300 py-2 pl-3 pr-8 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:bg-slate-100"
+          className="block w-full rounded-md border border-t-line-strong bg-t-field py-2 pl-3 pr-8 text-t-ink placeholder:text-t-placeholder focus:border-t-focus focus:outline-none focus:ring-1 focus:ring-t-focus disabled:bg-t-field-disabled"
         />
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-600"
+          className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-t-muted"
         >
           %
         </span>
       </div>
       {error && (
-        <p id={errorId} className="mt-1 text-sm font-medium text-red-700">
+        <p id={errorId} className="mt-1 text-sm font-medium text-t-error">
           {error}
         </p>
       )}

@@ -147,10 +147,21 @@ test("refresh clears the affordability draft and result", async ({
 const PROPERTY_HEADING = "Your property cost breakdown";
 const PROPERTY_SUBMIT = "Calculate property costs";
 
+async function ensurePropertySectionOpen(
+  page: Page,
+  title: string,
+): Promise<void> {
+  const toggle = page.getByRole("button", { name: title });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") {
+    await toggle.click();
+  }
+}
+
 async function fillPropertyBase(page: Page): Promise<void> {
   await page.getByLabel("Purchase price").fill("360000");
   await page.getByLabel("Down payment").fill("60000");
   await page.getByLabel("Annual interest rate").fill("0");
+  await ensurePropertySectionOpen(page, "Ongoing ownership costs");
   await page.getByLabel("Annual property taxes").fill("1200");
   await page.getByLabel("Annual homeowners insurance").fill("0");
   await page.getByLabel("Monthly HOA fees").fill("0");
@@ -170,10 +181,12 @@ test("property draft survives navigation away and back", async ({
   await page.goto("/property-costs");
   await page.getByLabel("Purchase price").fill("360000");
   await page.getByLabel("Down payment").fill("60000");
+  await ensurePropertySectionOpen(page, "Ongoing ownership costs");
   await page.locator("#property-annualTax-estimate").check();
   await page
     .getByRole("radio", { name: "15 years (180 months)" })
     .check();
+  await ensurePropertySectionOpen(page, "Additional monthly costs");
   await page.getByRole("button", { name: "Add another cost" }).click();
   await page.getByLabel("Label").fill("Alarm");
   await page.getByLabel("Monthly amount").fill("30");
@@ -182,6 +195,8 @@ test("property draft survives navigation away and back", async ({
     page.getByRole("heading", { name: "Affordability", exact: true }),
   ).toBeVisible();
   await goTo(page, "Property Costs");
+  // Incomplete drafts return with inputs directly accessible.
+  await expect(page.getByLabel("Purchase price")).toBeVisible();
   await expect(page.getByLabel("Purchase price")).toHaveValue("360000");
   await expect(page.getByLabel("Down payment")).toHaveValue("60000");
   await expect(page.locator("#property-annualTax-estimate")).toBeChecked();
@@ -203,6 +218,15 @@ test("completed property result survives navigation away and back", async ({
   await expect(
     page.getByRole("heading", { name: PROPERTY_HEADING }),
   ).toBeVisible();
+  // Completed sessions return compact without stealing focus; values wait
+  // behind the Edit control.
+  await expect(
+    page.getByRole("heading", { name: PROPERTY_HEADING }),
+  ).not.toBeFocused();
+  await expect(page.getByLabel("Purchase price")).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Edit property details" }),
+  ).toBeVisible();
   await expect(page.getByLabel("Purchase price")).toHaveValue("360000");
 });
 
@@ -214,6 +238,7 @@ test("editing a property field after returning retires the result", async ({
   await submitProperty(page);
   await goTo(page, "Affordability");
   await goTo(page, "Property Costs");
+  await page.getByRole("button", { name: "Edit property details" }).click();
   await page.getByLabel("Purchase price").fill("361000");
   await expect(
     page.getByRole("heading", { name: PROPERTY_HEADING }),
@@ -228,6 +253,8 @@ test("toggling an estimate after returning retires the result", async ({
   await submitProperty(page);
   await goTo(page, "Affordability");
   await goTo(page, "Property Costs");
+  await page.getByRole("button", { name: "Edit property details" }).click();
+  await ensurePropertySectionOpen(page, "Ongoing ownership costs");
   await page.locator("#property-annualTax-estimate").check();
   await expect(
     page.getByRole("heading", { name: PROPERTY_HEADING }),
@@ -242,6 +269,7 @@ test("changing term after returning retires the result", async ({
   await submitProperty(page);
   await goTo(page, "Affordability");
   await goTo(page, "Property Costs");
+  await page.getByRole("button", { name: "Edit property details" }).click();
   await page.getByRole("radio", { name: "15 years (180 months)" }).check();
   await expect(
     page.getByRole("heading", { name: PROPERTY_HEADING }),
@@ -256,6 +284,8 @@ test("adding a line after returning retires the result", async ({
   await submitProperty(page);
   await goTo(page, "Affordability");
   await goTo(page, "Property Costs");
+  await page.getByRole("button", { name: "Edit property details" }).click();
+  await ensurePropertySectionOpen(page, "Additional monthly costs");
   await page.getByRole("button", { name: "Add another cost" }).click();
   await expect(
     page.getByRole("heading", { name: PROPERTY_HEADING }),
@@ -267,12 +297,15 @@ test("editing a line after returning retires the result", async ({
 }) => {
   await page.goto("/property-costs");
   await fillPropertyBase(page);
+  await ensurePropertySectionOpen(page, "Additional monthly costs");
   await page.getByRole("button", { name: "Add another cost" }).click();
   await page.getByLabel("Label").fill("Alarm");
   await page.getByLabel("Monthly amount").fill("30");
   await submitProperty(page);
   await goTo(page, "Affordability");
   await goTo(page, "Property Costs");
+  await page.getByRole("button", { name: "Edit property details" }).click();
+  await ensurePropertySectionOpen(page, "Additional monthly costs");
   await page.getByLabel("Monthly amount").fill("40");
   await expect(
     page.getByRole("heading", { name: PROPERTY_HEADING }),
@@ -284,12 +317,15 @@ test("removing a line after returning retires the result", async ({
 }) => {
   await page.goto("/property-costs");
   await fillPropertyBase(page);
+  await ensurePropertySectionOpen(page, "Additional monthly costs");
   await page.getByRole("button", { name: "Add another cost" }).click();
   await page.getByLabel("Label").fill("Alarm");
   await page.getByLabel("Monthly amount").fill("30");
   await submitProperty(page);
   await goTo(page, "Affordability");
   await goTo(page, "Property Costs");
+  await page.getByRole("button", { name: "Edit property details" }).click();
+  await ensurePropertySectionOpen(page, "Additional monthly costs");
   await page.getByRole("button", { name: "Remove Alarm" }).click();
   await expect(
     page.getByRole("heading", { name: PROPERTY_HEADING }),
@@ -334,7 +370,7 @@ const COMPARE_HEADING = "Property comparison";
 const COMPARE_SUBMIT = "Compare properties";
 
 function compareSection(page: Page, side: "A" | "B"): Locator {
-  return page.locator(`section[aria-label="Property ${side}"]`);
+  return page.getByRole("region", { name: `Property ${side}` });
 }
 
 async function fillCompareSide(
@@ -378,6 +414,10 @@ test("compare drafts survive navigation away and back", async ({ page }) => {
     page.getByRole("heading", { name: "Affordability", exact: true }),
   ).toBeVisible();
   await goTo(page, "Compare Properties");
+  // Incomplete drafts return expanded: fields stay visible, not just valued.
+  await expect(
+    compareSection(page, "A").getByLabel("Purchase price"),
+  ).toBeVisible();
   await expect(
     compareSection(page, "A").getByLabel("Purchase price"),
   ).toHaveValue("300000");
@@ -413,6 +453,16 @@ test("completed comparison result survives navigation away and back", async ({
   await expect(
     page.getByRole("heading", { name: COMPARE_HEADING, exact: true }),
   ).toBeVisible();
+  // Completed sessions return compact; values persist behind Edit controls.
+  await expect(
+    page.getByRole("button", { name: "Edit Property A" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Edit Property B" }),
+  ).toBeVisible();
+  await expect(
+    compareSection(page, "A").getByLabel("Purchase price"),
+  ).toBeHidden();
   await expect(
     compareSection(page, "A").getByLabel("Purchase price"),
   ).toHaveValue("300000");
@@ -430,6 +480,7 @@ test("editing side B retires the result and preserves side A", async ({
   await submitCompare(page);
   await goTo(page, "Affordability");
   await goTo(page, "Compare Properties");
+  await page.getByRole("button", { name: "Edit Property B" }).click();
   await compareSection(page, "B").getByLabel("Purchase price").fill("301000");
   await expect(
     page.getByRole("heading", { name: COMPARE_HEADING, exact: true }),
@@ -451,6 +502,7 @@ test("toggling an estimate on side A retires the result", async ({
   await submitCompare(page);
   await goTo(page, "Affordability");
   await goTo(page, "Compare Properties");
+  await page.getByRole("button", { name: "Edit Property A" }).click();
   await page.locator("#compare-a-annualTax-estimate").check();
   await expect(
     page.getByRole("heading", { name: COMPARE_HEADING, exact: true }),
@@ -464,6 +516,7 @@ test("adding a line on side B retires the result", async ({ page }) => {
   await submitCompare(page);
   await goTo(page, "Affordability");
   await goTo(page, "Compare Properties");
+  await page.getByRole("button", { name: "Edit Property B" }).click();
   await compareSection(page, "B")
     .getByRole("button", { name: "Add another cost" })
     .click();

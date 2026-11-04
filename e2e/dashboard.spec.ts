@@ -14,10 +14,14 @@ const CARD_NAMES = [
 ] as const;
 
 async function goTo(page: Page, label: string): Promise<void> {
-  await page
-    .getByRole("navigation", { name: "Primary" })
-    .getByRole("link", { name: label, exact: true })
-    .click();
+  const nav = page.getByRole("navigation", { name: "Primary" });
+  // On narrow viewports the links hide behind the hamburger menu; on
+  // desktop the button is hidden and this is a no-op.
+  const menuButton = nav.getByRole("button", { name: /navigation menu/ });
+  if (await menuButton.isVisible()) {
+    await menuButton.click();
+  }
+  await nav.getByRole("link", { name: label, exact: true }).click();
 }
 
 function dashboardCard(page: Page, name: string): Locator {
@@ -55,10 +59,21 @@ async function submitAffordability(page: Page): Promise<void> {
 
 // --- Property fixtures (figures locked by e2e/true-cost.spec.ts BASE) ---
 
+async function ensurePropertySectionOpen(
+  page: Page,
+  title: string,
+): Promise<void> {
+  const toggle = page.getByRole("button", { name: title });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") {
+    await toggle.click();
+  }
+}
+
 async function submitProperty(page: Page): Promise<void> {
   await page.getByLabel("Purchase price").fill("360000");
   await page.getByLabel("Down payment").fill("60000");
   await page.getByLabel("Annual interest rate").fill("0");
+  await ensurePropertySectionOpen(page, "Ongoing ownership costs");
   await page.getByLabel("Annual property taxes").fill("1200");
   await page.getByLabel("Annual homeowners insurance").fill("0");
   await page.getByLabel("Monthly HOA fees").fill("0");
@@ -111,7 +126,7 @@ const SIDE_B: SideInputs = {
 };
 
 function compareSection(page: Page, side: "A" | "B"): Locator {
-  return page.locator(`section[aria-label="Property ${side}"]`);
+  return page.getByRole("region", { name: `Property ${side}` });
 }
 
 async function fillCompareSide(
@@ -228,7 +243,7 @@ test("completed compare shows both monthlies with a neutral sentence and no assu
   await expect(card.getByText("$1,160.00")).toBeVisible();
   await expect(
     card.getByText(
-      "Property B is $313.33 higher per month than Property A.",
+      "Property B costs $313.33 more per month than Property A.",
     ),
   ).toBeVisible();
   // UI-built comparisons share the engine's default assumption set, so the

@@ -1,1 +1,176 @@
 @import "tailwindcss";
+
+/*
+ * Semantic design tokens (T1 foundation).
+ *
+ * Each `--color-t-*` entry inside `@theme` generates the corresponding
+ * Tailwind utilities (bg-t-*, text-t-*, border-t-*, ring-t-*, accent-t-*,
+ * placeholder:text-t-*, ...). Every token references a plain CSS variable
+ * so that future themes can re-point values with a `[data-theme="..."]`
+ * override block — components never change again for theming.
+ *
+ * T1 values preserve the current white/slate appearance exactly: each
+ * variable references Tailwind's own palette variable for the color it
+ * replaces (see the mapping comments). No consolidated or new colors.
+ */
+@theme {
+  --color-t-page: var(--t-page);
+  --color-t-surface: var(--t-surface);
+  --color-t-surface-alt: var(--t-surface-alt);
+  --color-t-secondary-hover: var(--t-secondary-hover);
+
+  --color-t-ink: var(--t-ink);
+  --color-t-body: var(--t-body);
+  --color-t-body-strong: var(--t-body-strong);
+  --color-t-muted: var(--t-muted);
+  --color-t-caption: var(--t-caption);
+  --color-t-placeholder: var(--t-placeholder);
+
+  --color-t-line-soft: var(--t-line-soft);
+  --color-t-line: var(--t-line);
+  --color-t-line-strong: var(--t-line-strong);
+
+  --color-t-field: var(--t-field);
+  --color-t-field-disabled: var(--t-field-disabled);
+  --color-t-focus: var(--t-focus);
+
+  --color-t-action: var(--t-action);
+  --color-t-action-hover: var(--t-action-hover);
+  --color-t-on-action: var(--t-on-action);
+  --color-t-accent: var(--t-accent);
+
+  --color-t-error: var(--t-error);
+
+  --color-t-est-bg: var(--t-est-bg);
+  --color-t-est-ink: var(--t-est-ink);
+  --color-t-warn-bg: var(--t-warn-bg);
+  --color-t-warn-ink: var(--t-warn-ink);
+  --color-t-calc-bg: var(--t-calc-bg);
+  --color-t-calc-ink: var(--t-calc-ink);
+  --color-t-prov-bg: var(--t-prov-bg);
+  --color-t-prov-ink: var(--t-prov-ink);
+}
+
+/* T2 value set: Natural theme (warm cream + muted sage). Preserved
+ * exactly; also the fallback when no (or an invalid) theme is selected. */
+:root,
+[data-theme="natural"] {
+  color-scheme: light;
+  --t-page: #faf7f1; /* warm cream page */
+  --t-surface: #ffffff; /* white cards/tables/panels */
+  --t-surface-alt: #f0eae0; /* warm sand boxes/chips */
+  --t-secondary-hover: #e7dfd0; /* secondary-button hover */
+
+  --t-ink: #2b2925; /* warm near-black headings */
+  --t-body: #4e4a42; /* body text */
+  --t-body-strong: #3b3731; /* emphasized body text */
+  --t-muted: #6a6459; /* descriptions, captions */
+  --t-caption: #6f6960; /* table subtext */
+  --t-placeholder: #777166; /* input placeholder (4.84:1 on field) */
+
+  --t-line-soft: #e8e1d3; /* decorative row/divider separators */
+  --t-line: #dad2c0; /* decorative card/table/section borders */
+  --t-line-strong: #948a76; /* functional input/button/control borders */
+
+  --t-field: #ffffff; /* input background */
+  --t-field-disabled: #eee8db; /* disabled input background */
+  --t-focus: #5c6e5f; /* muted sage focus border/ring */
+
+  --t-action: #5c6e5f; /* muted sage primary buttons */
+  --t-action-hover: #4a5a4d; /* primary button hover */
+  --t-on-action: #ffffff; /* text on primary buttons */
+  --t-accent: #5c6e5f; /* checkbox/radio accent */
+
+  --t-error: #b42318; /* field error text */
+
+  --t-est-bg: #dee7ea; /* dusty teal-blue estimate badge */
+  --t-est-ink: #2f5d6b;
+  --t-warn-bg: #f2e6c9; /* earthy amber assumption badge */
+  --t-warn-ink: #7a5200;
+  --t-calc-bg: #3a3732; /* warm charcoal calculated badge */
+  --t-calc-ink: #faf7f1;
+  --t-prov-bg: #e8e2d4; /* sand user-provided badge */
+  --t-prov-ink: #4e4a42;
+}
+
+/* T3d.3-I: Light theme (clean white + neutral gray, slate-teal accents).
+ * All text pairs verified ≥ 4.5:1, UI pairs ≥ 3:1 (see T3d.3-I report). */
+[data-theme="light"] {
+  color-scheme: light;
+  --t-page: #ffffff;
+  --t-surface: #ffffff;
+  --t-surface-alt: #f4f5f7;
+  --t-secondary-hover: #e6e9ed;
+
+  --t-ink: #1a1d21;
+  --t-body: #3d454d;
+  --t-body-strong: #2b3138;
+  --t-muted: #5b6470;
+  --t-caption: #5b6470;
+  --t-placeholder: #6b7480;
+
+  --t-line-soft: #e8eaee;
+  --t-line: #d5dae1;
+  --t-line-strong: #7e8894;
+
+  --t-field: #ffffff;
+  --t-field-disabled: #eef0f3;
+  --t-focus: #2f5d6b;
+
+  --t-action: #2f5d6b;
+  --t-action-hover: #274e5b;
+  --t-on-action: #ffffff;
+  --t-accent: #2f5d6b;
+
+  --t-error: #b42318;
+
+  --t-est-bg: #dce9ee;
+  --t-est-ink: #1f4b57;
+  --t-warn-bg: #f5e8c8;
+  --t-warn-ink: #6b4a00;
+  --t-calc-bg: #2b3138;
+  --t-calc-ink: #ffffff;
+  --t-prov-bg: #e8eaee;
+  --t-prov-ink: #3d454d;
+}
+
+/* T3d.3-I: Dark theme (designed surfaces, not an inversion).
+ * All text pairs verified ≥ 4.5:1, UI pairs ≥ 3:1 (see T3d.3-I report). */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --t-page: #16130f;
+  --t-surface: #211c16;
+  --t-surface-alt: #2b251d;
+  --t-secondary-hover: #3a3226;
+
+  --t-ink: #f2ede3;
+  --t-body: #d3ccbc;
+  --t-body-strong: #e4ded0;
+  --t-muted: #aaa496;
+  --t-caption: #aaa496;
+  --t-placeholder: #a09a8c;
+
+  --t-line-soft: #332d24;
+  --t-line: #4a4335;
+  --t-line-strong: #7d7666;
+
+  --t-field: #211c16;
+  --t-field-disabled: #2b251d;
+  --t-focus: #8ba38f;
+
+  --t-action: #8ba38f;
+  --t-action-hover: #9db3a1;
+  --t-on-action: #16130f;
+  --t-accent: #8ba38f;
+
+  --t-error: #f0a8a0;
+
+  --t-est-bg: #1e3a44;
+  --t-est-ink: #a5d6e2;
+  --t-warn-bg: #4a3a12;
+  --t-warn-ink: #f0cf7d;
+  --t-calc-bg: #e8e2d4;
+  --t-calc-ink: #2b2925;
+  --t-prov-bg: #383226;
+  --t-prov-ink: #d3ccbc;
+}

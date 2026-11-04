@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import { postJson } from "../lib/api/client";
@@ -8,6 +8,7 @@ import {
   buildCompareRequest,
   mapCompareServerIssues,
 } from "../lib/api/compareRequest";
+import { formatDollars } from "../lib/format/money";
 import type {
   OtherCostLineErrors,
   TrueCostFieldErrors,
@@ -21,9 +22,11 @@ import type {
 } from "../lib/session/store";
 import { useSession } from "../lib/session/store";
 import type { ResolvedTrueCostProvenance } from "../lib/validation/api";
+import Card from "./Card";
 import CompareResultView from "./CompareResult";
 import CurrencyField from "./CurrencyField";
 import EstimateToggle from "./EstimateToggle";
+import ExplainSection from "./ExplainSection";
 import OtherCostsEditor from "./OtherCostsEditor";
 import PercentField from "./PercentField";
 import ProvenanceBadge from "./ProvenanceBadge";
@@ -190,27 +193,111 @@ function PropertySideFields({
   idPrefix,
   state,
   disabled,
+  collapsed,
+  collapsible,
+  onToggle,
+  mobileHidden,
+  switchLabel,
+  onSwitch,
+  summary,
 }: {
   side: "A" | "B";
   idPrefix: string;
   state: SideState;
   disabled: boolean;
+  // Post-calculation compact mode (T4a.1): inputs hide behind a summary.
+  // Pre-calculation `collapsible` is false and rendering is unchanged.
+  collapsed: boolean;
+  collapsible: boolean;
+  onToggle: () => void;
+  // Mobile pre-calculation accordion (T4a.2): when true, this side's inputs
+  // hide on narrow screens behind a switcher bar (desktop always shows
+  // both sides via responsive utilities — no JS breakpoint detection).
+  mobileHidden: boolean;
+  switchLabel: string;
+  onSwitch: () => void;
+  // Compact summary figures (T4c.1): verified engine-echo cents from the
+  // stored result, formatted with the shared display formatter. Null
+  // before calculation; the summary only renders alongside a result.
+  summary: { homePriceCents: number; downPaymentCents: number } | null;
 }) {
   const { values, fieldErrors } = state;
+  const inputsId = `${idPrefix}-inputs`;
+  // Effective visibility derives from the completed result: once an edit
+  // retires the result, both sides render expanded even if their toggle
+  // state is still collapsed — inputs can never strand hidden without an
+  // expansion control.
+  const isCollapsed = collapsed && collapsible;
+  const issueCount =
+    Object.keys(fieldErrors).length +
+    state.lineErrors.filter(
+      (line) =>
+        line !== undefined &&
+        (line.label !== undefined || line.monthly !== undefined),
+    ).length +
+    (state.general ? 1 : 0);
   return (
-    <section aria-label={`Property ${side}`}>
-      <h3 className="text-lg font-bold text-slate-900">Property {side}</h3>
+    <Card
+      id={`compare-property-${side}-heading`}
+      title={`Property ${side}`}
+      focusableHeading
+    >
+      {mobileHidden && (
+        <button
+          type="button"
+          onClick={onSwitch}
+          aria-expanded={false}
+          aria-controls={inputsId}
+          className="mt-4 w-full rounded-lg border border-t-line-strong bg-t-surface-alt p-4 text-left lg:hidden"
+        >
+          <span className="block text-sm font-semibold text-t-ink">
+            {switchLabel}
+          </span>
+          {issueCount > 0 && (
+            <span className="mt-1 block text-sm font-semibold text-t-error">
+              {issueCount} {issueCount === 1 ? "issue" : "issues"} to review
+            </span>
+          )}
+        </button>
+      )}
+      {collapsible && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!isCollapsed}
+          aria-controls={inputsId}
+          className="mt-4 w-fit text-sm font-semibold text-t-ink underline hover:text-t-body"
+        >
+          {isCollapsed
+            ? `Edit Property ${side}`
+            : `Collapse Property ${side} inputs`}
+        </button>
+      )}
+      {isCollapsed && summary && (
+        <p className="mt-3 text-sm text-t-body">
+          Purchase price: {formatDollars(summary.homePriceCents)} · Down
+          payment: {formatDollars(summary.downPaymentCents)}
+        </p>
+      )}
       {state.general && (
         <p
           role="alert"
-          className="mt-4 rounded-md border border-slate-300 bg-slate-50 p-4 text-sm font-medium text-slate-900"
+          className={`${mobileHidden ? "hidden lg:block " : ""}mt-4 rounded-md border border-t-line-strong bg-t-surface-alt p-4 text-sm font-medium text-t-ink`}
         >
           {state.general}
         </p>
       )}
-      <div className="mt-6 space-y-8">
+      <div
+        id={inputsId}
+        className={[
+          mobileHidden ? "hidden lg:block" : isCollapsed ? "hidden" : null,
+          collapsible ? "mt-4 space-y-8" : "mt-6 space-y-8",
+        ]
+          .filter((part) => part !== null)
+          .join(" ")}
+      >
         <fieldset disabled={disabled} className="space-y-6">
-          <legend className="text-base font-semibold text-slate-900">
+          <legend className="text-base font-semibold text-t-ink">
             Property {side} — Purchase &amp; loan
           </legend>
           <CurrencyField
@@ -251,7 +338,7 @@ function PropertySideFields({
               onChange={state.handleTermChange}
             />
             {fieldErrors.termYears && (
-              <p className="mt-1 text-sm font-medium text-red-700">
+              <p className="mt-1 text-sm font-medium text-t-error">
                 {fieldErrors.termYears}
               </p>
             )}
@@ -278,7 +365,7 @@ function PropertySideFields({
         </fieldset>
 
         <fieldset disabled={disabled} className="space-y-6">
-          <legend className="text-base font-semibold text-slate-900">
+          <legend className="text-base font-semibold text-t-ink">
             Property {side} — Recurring costs
           </legend>
           <div>
@@ -354,7 +441,7 @@ function PropertySideFields({
             <div className="mt-2">
               <ProvenanceBadge label="assumption" />
             </div>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-t-muted">
               Starting point only — not a recommendation or guaranteed cost.
             </p>
           </div>
@@ -379,7 +466,7 @@ function PropertySideFields({
           onRemoveLine={state.handleRemoveLine}
         />
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -391,6 +478,55 @@ export default function CompareForm() {
   const result = state.compare.result;
   const [banner, setBanner] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Post-calculation compact mode (T4a.1): purely local UI state. Drafts
+  // and results stay in session context; collapsing never clears values.
+  // Mounting onto a completed session result starts compact; mounting
+  // without one (fresh visit, refresh, start over) starts expanded.
+  const [collapsedA, setCollapsedA] = useState(
+    () => state.compare.result !== null,
+  );
+  const [collapsedB, setCollapsedB] = useState(
+    () => state.compare.result !== null,
+  );
+  // Focus moves to results only after an explicitly submitted success, never
+  // when mounting onto a previously completed session result.
+  const focusResultsRef = useRef(false);
+
+  useEffect(() => {
+    if (focusResultsRef.current && result) {
+      focusResultsRef.current = false;
+      document.getElementById("compare-results-heading")?.focus();
+    }
+  }, [result]);
+
+  // Mobile pre-calculation accordion (T4a.2): which side is expanded on
+  // narrow screens. Desktop ignores this (both sides always visible), and
+  // post-calculation summaries bypass it. Starts at A; edits keep the
+  // edited side active so retiring a result never strands the user.
+  const [mobileSide, setMobileSide] = useState<"A" | "B">("A");
+  const focusSideRef = useRef<"A" | "B" | null>(null);
+
+  useEffect(() => {
+    if (focusSideRef.current) {
+      const side = focusSideRef.current;
+      focusSideRef.current = null;
+      document
+        .getElementById(`compare-property-${side}-heading`)
+        ?.focus();
+    }
+  }, [mobileSide]);
+
+  function switchSide(side: "A" | "B"): void {
+    setMobileSide(side);
+    focusSideRef.current = side;
+  }
+
+  function sideHasErrors(
+    errors: TrueCostFieldErrors,
+    general: string | null,
+  ): boolean {
+    return hasMappedErrors(errors) || general !== null;
+  }
 
   function clearBanner(): void {
     setBanner(null);
@@ -401,6 +537,10 @@ export default function CompareForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    // Every submit starts fully expanded so no error can hide inside a
+    // collapsed side; a success collapses both sides again below.
+    setCollapsedA(false);
+    setCollapsedB(false);
     const built = buildCompareRequest(
       state.compare.draftA,
       state.compare.draftB,
@@ -411,6 +551,13 @@ export default function CompareForm() {
       // edits, and every edit retires atomically.
       sideA.setAllErrors(built.errorsA, built.generalA);
       sideB.setAllErrors(built.errorsB, built.generalB);
+      // On narrow screens, surface the first side with errors; the other
+      // side's compact bar carries an error badge. Desktop is unaffected.
+      if (sideHasErrors(built.errorsA, built.generalA)) {
+        setMobileSide("A");
+      } else if (sideHasErrors(built.errorsB, built.generalB)) {
+        setMobileSide("B");
+      }
       return;
     }
     sideA.clearErrors();
@@ -434,6 +581,11 @@ export default function CompareForm() {
           ) {
             sideA.setAllErrors(mapped.a, null);
             sideB.setAllErrors(mapped.b, null);
+            if (hasMappedErrors(mapped.a)) {
+              setMobileSide("A");
+            } else if (hasMappedErrors(mapped.b)) {
+              setMobileSide("B");
+            }
             if (!mapped.unmapped) {
               return;
             }
@@ -444,6 +596,9 @@ export default function CompareForm() {
         return;
       }
       dispatch({ type: "set-compare-result", response: response.data });
+      setCollapsedA(true);
+      setCollapsedB(true);
+      focusResultsRef.current = true;
     } finally {
       setSubmitting(false);
     }
@@ -454,6 +609,9 @@ export default function CompareForm() {
     sideA.clearErrors();
     sideB.clearErrors();
     setBanner(null);
+    setCollapsedA(false);
+    setCollapsedB(false);
+    setMobileSide("A");
   }
 
   return (
@@ -465,6 +623,24 @@ export default function CompareForm() {
             idPrefix="compare-a"
             state={sideA}
             disabled={submitting}
+            collapsed={collapsedA}
+            collapsible={result !== null}
+            onToggle={() => {
+              setCollapsedA((value) => !value);
+              setMobileSide("A");
+            }}
+            mobileHidden={result === null && mobileSide !== "A"}
+            switchLabel="Back to Property A"
+            onSwitch={() => switchSide("A")}
+            summary={
+              result === null
+                ? null
+                : {
+                    homePriceCents: result.result.a.inputs.homePriceCents,
+                    downPaymentCents:
+                      result.result.a.inputs.downPaymentCents,
+                  }
+            }
           />
           <div className="mt-10 lg:mt-0">
             <PropertySideFields
@@ -472,6 +648,24 @@ export default function CompareForm() {
               idPrefix="compare-b"
               state={sideB}
               disabled={submitting}
+              collapsed={collapsedB}
+              collapsible={result !== null}
+              onToggle={() => {
+                setCollapsedB((value) => !value);
+                setMobileSide("B");
+              }}
+              mobileHidden={result === null && mobileSide !== "B"}
+              switchLabel="Continue to Property B"
+              onSwitch={() => switchSide("B")}
+              summary={
+                result === null
+                  ? null
+                  : {
+                      homePriceCents: result.result.b.inputs.homePriceCents,
+                      downPaymentCents:
+                        result.result.b.inputs.downPaymentCents,
+                    }
+              }
             />
           </div>
         </div>
@@ -479,7 +673,7 @@ export default function CompareForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-slate-900 px-5 py-2.5 font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
+            className="rounded-md bg-t-action px-5 py-2.5 font-semibold text-t-on-action hover:bg-t-action-hover disabled:opacity-60"
           >
             {submitting ? "Comparing…" : "Compare properties"}
           </button>
@@ -487,7 +681,7 @@ export default function CompareForm() {
             type="button"
             onClick={handleStartOver}
             disabled={submitting}
-            className="rounded-md border border-slate-300 px-5 py-2.5 font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
+            className="rounded-md border border-t-line-strong px-5 py-2.5 font-semibold text-t-ink hover:bg-t-secondary-hover disabled:opacity-60"
           >
             Start over
           </button>
@@ -496,18 +690,39 @@ export default function CompareForm() {
       {banner && (
         <p
           role="alert"
-          className="mt-6 rounded-md border border-slate-300 bg-slate-50 p-4 text-sm font-medium text-slate-900"
+          className="mt-6 rounded-md border border-t-line-strong bg-t-surface-alt p-4 text-sm font-medium text-t-ink"
         >
           {banner}
         </p>
       )}
-      <div aria-live="polite">
+      <div
+        aria-live="polite"
+        className={result ? "mt-10 lg:mt-0" : undefined}
+      >
         {result && (
-          <CompareResultView
-            result={result.result}
-            provenanceA={result.provenanceA}
-            provenanceB={result.provenanceB}
-          />
+          <>
+            <CompareResultView
+              result={result.result}
+              provenanceA={result.provenanceA}
+              provenanceB={result.provenanceB}
+            />
+            <div className="mt-8">
+              <Card id="compare-insights-heading" title="Financial insights">
+                <ExplainSection
+                  buildPayload={() => {
+                    const built = buildCompareRequest(
+                      state.compare.draftA,
+                      state.compare.draftB,
+                    );
+                    return built.ok
+                      ? { workflow: "compare", a: built.a, b: built.b }
+                      : null;
+                  }}
+                  visual={{ workflow: "compare", result: result.result }}
+                />
+              </Card>
+            </div>
+          </>
         )}
       </div>
     </div>

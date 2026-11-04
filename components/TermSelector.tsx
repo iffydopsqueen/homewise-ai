@@ -20,14 +20,14 @@ export default function TermSelector({
 }: TermSelectorProps) {
   return (
     <fieldset disabled={disabled}>
-      <legend className="text-sm font-semibold text-slate-900">
+      <legend className="text-sm font-semibold text-t-ink">
         Loan term
       </legend>
       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
         {OPTIONS.map((option) => (
           <label
             key={option.years}
-            className="flex items-center gap-2 text-sm text-slate-900"
+            className="flex items-center gap-2 text-sm text-t-ink"
           >
             <input
               type="radio"
@@ -36,7 +36,7 @@ export default function TermSelector({
               checked={value === option.years}
               disabled={disabled}
               onChange={() => onChange(option.years)}
-              className="h-4 w-4 border-slate-300 accent-slate-900"
+              className="h-4 w-4 border-t-line-strong accent-t-accent"
             />
             {option.label}
           </label>

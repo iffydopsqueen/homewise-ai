@@ -270,6 +270,13 @@ implementation and tests must handle.
 
 ## E. AI agent design
 
+> Design record: this section specifies the approved tool-calling
+> containment model. As built, the integration is narrower still —
+> the model makes no tool calls at all and receives only a
+> server-generated fact ledger (see the Phase 7 roadmap note and
+> implementation record). The E.3 verification pipeline below is what
+> shipped, applied to the ledger instead of tool results.
+
 ### E.1 Role and constraints
 
 Muse Spark acts strictly as an explainer of verified numbers. Its
@@ -381,7 +388,10 @@ homewise-ai/
 Responsibility rule: `lib/calc` never imports from `lib/ai` (math must
 not depend on the model); components never import from `lib/ai`
 (the browser must not touch model code); API routes orchestrate the
-rest.
+rest. As built, the single exception is one `import type` of the
+`Fact` interface in `ExplainSection.tsx`, which is erased at compile
+time — no runtime model code reaches the browser (verified by import
+audit at release).
 
 ## H. Development roadmap
 
@@ -428,11 +438,21 @@ labels and the persistent disclaimer.
 Completion criteria: the full journey works end to end with AI
 disabled; every displayed number traces to a validated result.
 
+> As built: the What-If controls were deferred (engine and API done,
+> no UI); the Affordability, Property Costs, and Compare journeys meet
+> the criteria above.
+
 ### Phase 7 — AI integration
 
 Implement the server-only model client, the four-tool allowlist, and
 the section E.3 verification pipeline against the verified Meta API
 shape; wire the explanation panel.
+
+> As built (see the Phase 7 record below): tool calling was replaced
+> with a simpler single-turn stateless call over a server-generated
+> fact ledger — narrower than the planned allowlist, with the same
+> containment guarantees and no filesystem, shell, or network tools
+> exposed to the model.
 
 Completion criteria: explanations cite only verified figures;
 malformed or failed AI responses degrade to the calc-only view; no
@@ -531,3 +551,57 @@ room.
   `lib/calc`, `lib/validation`, and `lib/api`. API abuse protection
   (rate limiting, auth model, body-size review) must be revisited
   before any public deployment.
+
+## Appendix: Phase 6 implementation record (UI)
+
+- Routes: `/` dashboard, `/affordability`, `/property-costs`,
+  `/compare`. Memory-only session store: drafts and results survive
+  client navigation, clear on refresh; editing inputs retires stale
+  results; Start over clears per workflow.
+- No browser arithmetic: forms parse/validate display strings and POST
+  to the Phase 5 endpoints; every rendered figure comes from the API
+  response. Provenance badges echo server labels; calculated rows add
+  "Based on …" contributor subtext.
+- Responsive: mobile accordion patterns for compare inputs and result
+  sections (CSS-driven, no hydration tricks); desktop layouts
+  unchanged. Light/Natural/Dark themes via token re-pointing with a
+  hydration-safe provider. Standard disclaimers on every result view.
+
+## Appendix: Phase 7 implementation record (AI explanations)
+
+- `POST /api/explain` validates engine inputs, recomputes with
+  `lib/calc`, builds a server fact ledger (`lib/ai/facts.ts`), calls
+  Muse Spark 1.3 via the Responses API (`low` effort, strict JSON
+  Schema), and validates the reply (`lib/ai/validateExplanation.ts`).
+  The request carries inputs only — never results — and What-If stays
+  rejected (no UI).
+- Validator: Zod shape, citation resolution, integer-exact number
+  grounding per cited fact (directional difference facts also accept
+  the absolute magnitude phrased with a direction word), and rejection
+  of verdict/recommendation/provenance/multiplier language. Any failure
+  discards the whole explanation; the client never renders unvalidated
+  narrative or parses it for numbers.
+- `lib/ai/metaClient.ts`: 60 s timeout, no automatic retries, key from
+  server env at call time, `AI_EXPLAIN_ENABLED` kill switch (production
+  fails closed). UI retry allowlist is `ai_unavailable` + `network_error`
+  only, always manual. Opt-in `HOMEWISE_AI_DIAGNOSTICS=1` logging carries
+  timings, categories, and token counts only.
+- UI (`ExplainSection` + `InsightVisuals`): deterministic charts render
+  from the verified result in every AI state; the explanation is an
+  explicit opt-in with disclosure, truthful per-state model attribution,
+  and a neutral failure message that keeps the calculated view.
+
+## Appendix: Phase 8 implementation record (hardening)
+
+- Test gates: `typecheck`, `lint`, Vitest unit/API suite, Playwright
+  E2E (provider always stubbed via route interception — no live Meta
+  calls in tests), and production build.
+- Coverage includes known-answer engine vectors, boundary and
+  invalid-input rejection, provenance matrices, sanitized-error
+  sentinel checks, validator accept/reject fixtures (including signed
+  differences), per-workflow journeys, responsive/overflow checks at
+  320/390px, theme rendering, keyboard/focus behavior, and AI
+  idle/loading/failed/ready states in all three workflows.
+- Known limitations: validator grounds figures, not qualitative framing
+  (documented M2); no auth/persistence/rate limiting (same-origin MVP);
+  What-If has engine + API but no UI.

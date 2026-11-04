@@ -12,16 +12,16 @@ export default function AffordabilityPage() {
       <section aria-labelledby="affordability-heading">
         <h1
           id="affordability-heading"
-          className="text-3xl font-bold tracking-tight text-slate-900"
+          className="text-3xl font-bold tracking-tight text-t-ink"
         >
           Affordability
         </h1>
-        <p className="mt-3 text-lg text-slate-700">
+        <p className="mt-3 text-lg text-t-body">
           Understand whether a monthly housing payment fits your budget.
         </p>
-        <p className="mt-2 text-sm text-slate-600">
-          Enter your finances below. Your figures stay in this session and go
-          only to this app&apos;s own calculator.
+        <p className="mt-2 text-sm text-t-muted">
+          Enter your finances below. Calculations use the figures you enter,
+          and only the optional AI explanation sends them to Meta.
         </p>
         <div className="mt-8">
           <FinanceForm />
