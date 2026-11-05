@@ -1,78 +1,126 @@
-# Meta Model API — Integration Notes
+# HomeWise AI — Meta Model API Integration
 
-How HomeWise AI calls Meta Muse Spark, and what was verified along the
-way. No credentials live in this file; the key is configured per
-[README.md](README.md) and read server-side only.
+## Purpose
 
-## Integration (as built)
+HomeWise AI uses **Meta Muse Spark 1.3** to generate optional, plain-language explanations of **already calculated** Affordability, Property Costs, and Compare Properties results.
 
-- Model: `muse-spark-1.3`, the standard API variant. Contributor
-  variants are deliberately never selected.
-- Protocol: **Responses API** (`POST https://api.meta.ai/v1/responses`),
-  single-turn stateless input (developer instructions + fact-ledger
-  user block), no tools, no history, no files.
-- Authentication: Bearer [REDACTED] from the server-only `MODEL_API_KEY`
-  environment variable, read at call time. The key never reaches the
-  browser, logs, errors, or the repository.
-- Reasoning effort `low` by default. `minimal` exists only behind the
-  server-only `HOMEWISE_AI_EFFORT` experiment flag: it was tested,
-  produced validation failures, and was not promoted. `low` is the
-  safer default, not a guarantee of successful explanations.
-- Structured output: `text.format` JSON Schema (`homewise_explanation`,
-  strict) with observations + limitations; the server re-validates
-  everything with Zod regardless. Requests set `store: false` and cap
-  output at 8,000 tokens.
-- Client (`lib/ai/metaClient.ts`): 60-second timeout, no automatic
-  retries (a 429 delay is surfaced, never acted on; UI retries are
-  manual and allowlisted to transient failures), usage counters
-  extracted when present. Failures carry stable kinds — never provider
-  bodies, prompts, figures, or credentials.
-- Facts ledger (`lib/ai/facts.ts`): every figure the model may
-  reference is minted server-side from the app's own deterministic
-  recomputation, with exact integer numerics, display strings, and
-  provenance kinds.
-- Verification (`lib/ai/validateExplanation.ts`): citations must
-  resolve to the server ledger, every number must match a cited fact
-  exactly (integer-exact; directional difference facts also accept the
-  absolute magnitude phrased with a direction word), and verdict,
-  recommendation, provenance, or multiplier vocabulary rejects the
-  whole reply.
-- Route (`POST /api/explain`): recomputes figures from inputs (never
-  trusts client results), maps every AI-side failure to one sanitized
-  503, and emits opt-in diagnostics (`provider`, `model`, `api`,
-  workflow, outcome, stage timings, token counts — never figures or
-  secrets) when `HOMEWISE_AI_DIAGNOSTICS=1`.
+The integration is intentionally **not** an autonomous agent, a property-search system, or a financial calculator. The financial engines remain the authoritative source of numbers.
 
-## Early research notes (historical)
+## How a request is made
 
-Recorded during Phase 3 scaffold verification from the official Meta
-documentation at <https://dev.meta.ai/docs> (overview, quickstart, and
-models pages). No keys were created and no calls were made at that
-time. These notes informed the design; the section above describes
-what actually shipped.
+1. The user completes a calculation using the HomeWise interface.
+2. The application displays deterministic results and charts immediately.
+3. The user explicitly clicks **Generate insights**.
+4. `POST /api/explain` validates the request and recomputes the relevant results.
+5. The server builds a ledger of allowed financial facts and sends a structured prompt to Meta.
+6. The model returns structured observations and a limitation statement.
+7. HomeWise validates response structure, citations and numerical claims before displaying it.
 
-- Base URL `https://api.meta.ai/v1`, with `/responses` and `/models`
-  endpoints documented under it.
-- Muse Spark model IDs listed: `muse-spark-1.1`, `muse-spark-1.2`,
-  `muse-spark-1.3`, plus `-contributor` variants of 1.2 and 1.3.
-- Three protocol options documented (Responses, Chat Completions,
-  Messages) with a "Choosing an API" guide; Responses was selected at
-  implementation time.
-- Dedicated capability docs existed for tool calling and structured
-  output. Structured output shipped; tool calling was superseded by
-  the narrower fact-ledger design (see ARCHITECTURE.md §E).
-- No SDK was adopted: the client is hand-rolled `fetch`, deliberately
-  dependency-free per ground rule 9.
+There is **one provider request per user activation** and no automatic retry or automatic explanation generation. Invalid model output never replaces the calculated results.
 
-## Still open (not verified)
+## Current integration configuration
 
-- Rate limits, pricing, and the full error-code taxonomy.
-- Whether an official TypeScript SDK exists.
+| Setting | Implemented behavior |
+| --- | --- |
+| Provider | Meta Model API |
+| Model | `muse-spark-1.3` |
+| Endpoint | `POST /v1/responses` |
+| Auth | Server-side bearer token from `MODEL_API_KEY` |
+| Default reasoning | `low` |
+| Experimental effort override | `HOMEWISE_AI_EFFORT`, allowlisted to `low` or `minimal`; defaults safely to `low` |
+| Output token budget | `max_output_tokens: 8000` |
+| Request timeout | 60 seconds |
+| Persistence control | `store: false` |
+| Response shape | Strict JSON schema for observations and limitations |
+| Retry policy | No automatic provider retries |
+| Trigger | Explicit user action only |
 
-## Standing constraints (from PROJECT_RULES.md and ARCHITECTURE.md)
+These values describe the current project configuration, not a guaranteed provider response time or success rate.
 
-- Server-side calls only; the key never reaches the browser, logs,
-  errors, or the repository.
-- Minimum-necessary figures sent per request; no names or identifiers.
-- Model output validated against a strict schema; failures degrade to
-  the calc-only view.
+### Local environment
+
+The calculators work without an API key. To enable optional Meta explanations, use a local `.env.local` file created from `.env.example` **only if one does not already exist**, and set:
+
+```dotenv
+MODEL_API_KEY=your_meta_model_api_key
+```
+
+In a production deployment, use the server-side `AI_EXPLAIN_ENABLED` setting according to the configuration template. Do not store credentials in browser variables or commit `.env.local`.
+
+For privacy-safe operational diagnostics during development:
+
+```bash
+HOMEWISE_AI_DIAGNOSTICS=1 HOMEWISE_AI_EFFORT=low npm run dev
+```
+
+The effort override is server-only and experimental; `low` remains the recommended default for the shipped demo.
+
+## Structured output and fact grounding
+
+The server generates facts from the deterministic engine and assigns references to those facts. The model is instructed to explain salient figures in clear American English, distinguish monthly/annual/upfront amounts, and cite the fact IDs relevant to each observation.
+
+The schema limits response length and requires structured observations and limitations. The prompt aims for a few short, readable observations rather than repeating every financial input.
+
+The response validator checks, as applicable:
+
+- Required output structure and field constraints.
+- Referenced fact IDs and citation relationships.
+- Numeric statements against the known facts.
+- Unsupported claims or prohibited language suggesting decisions, approvals or recommendations.
+
+The validator is a **guardrail**, not a proof that every possible natural-language interpretation is correct. A model may produce a grammatically awkward response or a directionally confusing phrase even when all numeric claims match. The deterministic comparison cards and tables remain authoritative.
+
+## Provenance and explanations
+
+Financial Insights distinguishes relevant figure sources:
+
+- **User-provided:** a value entered by the user.
+- **Estimate:** a value designated as an estimate.
+- **Assumption:** an editable modeling starting point.
+- **Calculated:** a result of the financial engine.
+
+The model must not represent an estimated tax, insurance cost, or closing amount as independently verified. Estimated upfront cash is **not** the same as confirmed lender cash to close. Missing PMI or other costs must be disclosed when material to the current calculation.
+
+## Failure and fallback behavior
+
+A provider request can fail because of provider errors, network issues, timeout, incomplete output, malformed JSON, or a validation rejection. Known validation categories from live testing include `number_mismatch` and `banned_language`.
+
+The API returns a safe failure response, and the interface displays a neutral unavailable message. **Calculated charts and amounts remain visible and usable.** Where the client contract permits it, the user can manually try again. There are no automatic repair calls or retries that might silently increase model usage.
+
+A response with HTTP 503 from `/api/explain` does not by itself prove the Meta service is down; HomeWise also uses this safe response when model output fails its validation requirements.
+
+## Reasoning-effort experiments
+
+The project tested `minimal` effort as a latency experiment. It was faster in an initial three-workflow comparison but later produced validation failures on repeat requests. Consequently:
+
+- `low` remains the default and demo configuration.
+- `minimal` remains an explicit server-only test option, not a reliability recommendation.
+- Lower reasoning effort must not be treated as equivalent quality without validation.
+- Reducing the output-token cap merely to force faster responses is not a verified optimization and may increase incomplete output.
+
+The project also improved the prompt to request takeaway-first, concise, grammatically clearer explanations. Prompt changes do not guarantee every generated response will pass validation.
+
+## Diagnostics and privacy
+
+When explicitly enabled, server diagnostics are designed to contain only operational information such as:
+
+- Event name and workflow.
+- Provider and model identifiers.
+- Success/failure category and safe validator reason.
+- Parse, facts, prompt, provider and validation timing.
+- Available input, output and reasoning token counters.
+
+Do not log or publish credentials, authorization headers, raw financial inputs, user-entered amounts, full prompts, model text, or reasoning content. Safe example diagnostic **field names** are useful in a demo, but the video must show a genuine live request rather than fabricated output.
+
+In Chrome developer tools the browser request appears as `/api/explain`. The outbound request to Meta occurs on the server, so the terminal diagnostic is the appropriate companion evidence.
+
+## Boundaries and non-goals
+
+- No autonomous multi-agent orchestration or tool calling.
+- No external property search, lender integration, or credit-check service.
+- No model-generated authoritative calculations.
+- No automatic background explanations or retries.
+- No persistent user finance profile.
+- No claims that the tool predicts mortgage approval or decides which home to buy.
+
+For application architecture see [ARCHITECTURE.md](ARCHITECTURE.md); for the feature scope see [PRODUCT_SPEC.md](PRODUCT_SPEC.md); for a safe live demonstration see [docs/DEMO.md](docs/DEMO.md).

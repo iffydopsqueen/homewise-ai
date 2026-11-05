@@ -79,6 +79,9 @@ const VERDICT_PATTERNS: RegExp[] = [
   /\bcould\s+(not\s+)?afford\b/i,
   /\bcouldn't\s+afford\b/i,
   /\bcomfortably\s+afford\b/i,
+  /\b(?:pre[-\s]?)?approv\w*\b/i,
+  /\beligib\w*\b/i,
+  /\b(?:pre[-\s]?)?qualif\w*\b/i,
   /\b(is|are|seems?|looks?|appears?|sounds?|remains?|stays?|feels?)\s+(an?\s+)?(\w+\s+)?(affordable|comfortable|safe|risky|expensive)\b/i,
   /\bunaffordable\b/i,
   /\btoo\s+expensive\b/i,
@@ -569,18 +572,37 @@ function tokenMatches(token: NumberToken, facts: Fact[]): boolean {
   }
 }
 
-function hasBannedLanguage(text: string): boolean {
-  return [...VERDICT_PATTERNS, ...PROVENANCE_PATTERNS, ...MULTIPLIER_PATTERNS].some(
-    (pattern) => pattern.test(text),
-  );
+// Allowlisted banned-language category for diagnostics. A coarse tag only
+// — never the matched text — so future rejections are diagnosable
+// without logging any model output.
+export type BannedCategory = "verdict" | "provenance" | "multiplier";
+
+function bannedCategoryFor(text: string): BannedCategory | null {
+  if (VERDICT_PATTERNS.some((pattern) => pattern.test(text))) {
+    return "verdict";
+  }
+  if (PROVENANCE_PATTERNS.some((pattern) => pattern.test(text))) {
+    return "provenance";
+  }
+  if (MULTIPLIER_PATTERNS.some((pattern) => pattern.test(text))) {
+    return "multiplier";
+  }
+  return null;
 }
+
+export type ExplanationValidation =
+  | { ok: true; explanation: ValidatedExplanation }
+  | { ok: false; reason: Exclude<ValidationReason, "banned_language"> }
+  | {
+      ok: false;
+      reason: "banned_language";
+      bannedCategory: BannedCategory;
+    };
 
 export function validateExplanation(
   input: unknown,
   facts: Fact[],
-):
-  | { ok: true; explanation: ValidatedExplanation }
-  | { ok: false; reason: ValidationReason } {
+): ExplanationValidation {
   const parsed = explanationOutputSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, reason: "invalid_shape" };
@@ -612,8 +634,11 @@ export function validateExplanation(
     return { ok: false, reason: "unknown_fact" };
   }
   const sections = [...observations, limitations];
-  if (sections.some((section) => hasBannedLanguage(section.text))) {
-    return { ok: false, reason: "banned_language" };
+  for (const section of sections) {
+    const bannedCategory = bannedCategoryFor(section.text);
+    if (bannedCategory !== null) {
+      return { ok: false, reason: "banned_language", bannedCategory };
+    }
   }
   for (const section of sections) {
     const grounded = extractNumberTokens(section.text).every((token) =>

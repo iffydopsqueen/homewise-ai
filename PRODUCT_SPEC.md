@@ -1,170 +1,177 @@
 # HomeWise AI — Product Specification
 
-Product requirements for the MVP. Technical design lives in
-[ARCHITECTURE.md](ARCHITECTURE.md). Engineering ground rules live in
-[PROJECT_RULES.md](PROJECT_RULES.md).
+## 1. Product summary
 
-> Release scope. **Implemented:** Affordability, Property Costs,
-> Compare Properties, Dashboard, Financial Insights, and optional Meta
-> explanations. **Deferred:** user-facing What-If scenarios (engine and
-> API implemented and tested; UI outside the current release — see
-> §3.4).
+**HomeWise AI** is a homebuying affordability and property comparison application for first-time buyers. Its purpose is to make ongoing and upfront housing costs easier to understand before someone makes a purchase decision.
 
-## 1. Target users
+The product combines **deterministic financial estimates** with **optional Meta Muse Spark 1.3 explanations**. Meta AI interprets validated calculated results; it never supplies the authoritative financial calculations.
 
-Primary users — first-time homebuyers who:
+### Audience
 
-- Earn a regular income and can state their monthly take-home pay.
-- Are evaluating whether they can afford to buy without becoming
-  "house poor" (spending so much on housing that little is left for
-  savings, debt, and daily life).
-- Are comparing at most two specific properties.
-- Want plain-language explanations of costs, not just numbers.
+- Primary: first-time homebuyers who want a clearer picture of their monthly budget and potential housing costs.
+- Secondary: people comparing two prospective properties or reviewing their existing financial assumptions.
 
-Non-users for the MVP: real-estate professionals, lenders, investors,
-and anyone seeking mortgage approval decisions or professional
-financial advice. The product must not present itself as any of those.
+### Problem
 
-## 2. Problem statement
+Buyers may focus on a listing price or mortgage principal-and-interest payment while overlooking taxes, insurance, maintenance, HOA fees, upfront cash, and existing monthly commitments. HomeWise presents those pieces together without claiming that a lender would approve the purchase.
 
-First-time buyers routinely underestimate the true cost of owning a home.
-Listing prices and mortgage calculators spotlight principal and interest,
-while property taxes, homeowners insurance, HOA fees, maintenance, and
-other recurring costs stay hidden until after purchase. The result is
-buyers who qualify for a loan they can technically service yet cannot
-comfortably live with.
+## 2. Product principles
 
-Two existing options each fail in one direction: traditional calculators
-produce numbers with no explanation, while general-purpose AI chatbots
-explain fluently but can invent or miscalculate figures. HomeWise AI
-combines both strengths with neither weakness: deterministic,
-tested application code computes every figure, and AI explains what
-those verified figures mean for the user's situation.
+1. **Clarity before complexity.** Use everyday English and clear, labeled figures.
+2. **Deterministic calculations.** Every financial result comes from the application engine, not the model.
+3. **Traceable assumptions.** Distinguish supplied values, estimates, assumptions, and calculated amounts.
+4. **Optional AI.** Calculations and visualizations must work even if AI is disabled or unavailable.
+5. **No lending or purchase verdicts.** Show financial information without approvals, rankings, or recommendations.
+6. **Privacy by design.** No user accounts, persistent financial records, or unnecessary external services in the MVP.
+7. **Mobile and accessible.** Core workflows must work with a narrow viewport and keyboard controls.
 
-## 3. MVP capabilities
+## 3. Shipped user-facing workflows
 
-### 3.1 Affordability assessment
+### 3.1 Affordability
 
-Inputs: monthly take-home income, monthly debt payments, monthly
-recurring expenses, current savings, and a proposed monthly housing cost.
+**Inputs**
 
-Outputs: an affordability picture showing how the proposed housing cost
-fits against income, obligations, and savings cushion — with every
-threshold and guideline explicitly labeled as an assumption, not a
-lending decision.
+- Monthly take-home income.
+- Proposed monthly housing cost.
+- Existing monthly debt payments.
+- Other monthly living expenses.
+- Available savings.
 
-### 3.2 True cost of ownership calculator
+**Outputs**
 
-Computes the full monthly and annual cost of owning one property from:
-mortgage principal and interest, property taxes, homeowners insurance,
-HOA fees, maintenance reserves, and other user-specified recurring costs.
+- Total monthly obligations and money remaining after the entered obligations.
+- Proposed housing cost as a percentage of take-home pay.
+- Total obligations as a percentage of take-home pay.
+- A savings cushion in months based on the entered savings and monthly obligations, when the calculation is defined.
+- Income-allocation visualization and a detailed, traceable breakdown.
 
-Every line item must be labeled with its provenance: user-provided
-value, estimate, or assumption.
+**Required behavior**
 
-### 3.3 Two-property comparison
+- Clearly show positive, zero, or negative remaining money; do not turn a shortfall into a favorable verdict.
+- Handle zero-income and zero-obligation cases without misleading percentages or infinite cushion values.
+- Do not introduce a universal affordability threshold or lender-approval label.
 
-Side-by-side comparison of two properties' true ownership costs,
-showing per-component and total monthly, annual, and upfront-cash
-differences. If the two properties were evaluated under different
-assumptions, the comparison must flag that so the user does not read a
-misleading delta.
+### 3.2 Property Costs
 
-### 3.4 What-if scenarios
+**Inputs**
 
-Starting from a base scenario, the user varies down payment, interest
-rate, property taxes, homeowners insurance, and maintenance inputs and
-sees recomputed totals and deltas against the base. All recomputation
-is deterministic application logic.
+- Purchase price and down payment.
+- Annual mortgage interest rate and loan term.
+- Annual property tax and homeowners insurance.
+- Monthly HOA fees, maintenance assumptions, and private mortgage insurance (PMI), when provided.
+- Estimated closing costs and other recurring property expenses, when applicable.
+- Source or estimation choices for relevant fields.
 
-> Build status: the deterministic engine (`lib/calc/whatIf.ts`) and the
-> `POST /api/what-if` endpoint are implemented and tested, but the
-> user-facing What-If controls were intentionally deferred to keep the
-> release focused on the three completed workflows. The requirement
-> above stands for a future increment.
+**Outputs**
 
-### 3.5 Grounded AI explanations and insights
+- Monthly principal and interest.
+- Itemized monthly property costs and annualized total.
+- Estimated upfront cash based on the down payment and supplied closing costs.
+- Visual cost allocation, largest monthly drivers, and a detailed breakdown.
+- Appropriate notes when costs are missing, estimated, or outside the calculation.
 
-Meta Muse Spark 1.3 generates plain-language explanations and insights
-(for example: why one property costs more per month, or which cost
-driver dominates). The model works only
-from verified application calculations, must never compute or invent
-figures independently, and its text is supplementary: the numbers shown
-on screen always come from the calculation engine, with or without AI.
+**Required behavior**
 
-## 4. Explicitly out of MVP scope
+- Keep one-time and recurring costs separate.
+- Do not present the upfront estimate as lender-confirmed cash to close.
+- Treat optional PMI as a user-supplied figure; do not silently infer it from the down payment.
+- Label maintenance starting assumptions explicitly and allow the user to edit them.
 
-- Mortgage approval predictions, pre-approval, or any promise that a
-  loan will be granted.
-- Professional financial advice (e.g. "you should buy this home").
-  The UI must carry a persistent disclaimer to this effect.
-- Comparing more than two properties, saved portfolios, or sharing.
-- Live market data: interest-rate feeds, listings, or tax-record
-  lookups. All figures are user-provided or clearly labeled estimates.
-- User accounts, cross-device persistence, or collaboration.
-- Rent-vs-buy analysis.
-- Amortization schedules (monthly payment suffices for the MVP).
-- Tax advice, including mortgage-interest deduction guidance.
-- Native mobile apps.
+### 3.3 Compare Properties
 
-## 5. Primary user journey
+**Inputs**
 
-1. The user enters their finances: take-home income, debts, recurring
-   expenses, savings.
-2. The user enters a proposed monthly housing cost and receives an
-   affordability snapshot with labeled assumptions.
-3. The user enters property A's details and costs, and sees the true
-   monthly, annual, and upfront cost breakdown with provenance labels.
-4. The user adds property B and sees the side-by-side comparison
-   with deltas.
-5. The user runs what-if scenarios (down payment, rate, taxes,
-   insurance, maintenance) and sees how totals move. (Deferred from
-   this release: see the §3.4 build-status note.)
-6. At each results step, the user may read an AI-generated explanation
-   grounded in the verified figures on screen.
-7. If AI is unavailable, steps 1–5 still work fully; only the
-   explanations are absent.
+Two independent property scenarios using the Property Costs inputs.
 
-Global UX requirements across this journey:
+**Outputs**
 
-- Every figure is traceable to a user input or a labeled
-  estimate/assumption.
-- A persistent disclaimer states the product is educational, is not a
-  lending decision, and is not professional financial advice.
+- Property A and Property B monthly and annual estimates.
+- Estimated upfront cash for each property.
+- The size and direction of the monthly, annual, upfront, and category-by-category differences.
+- A visual comparison and an explanation of relevant assumptions.
 
-## 6. Assumptions and unresolved product decisions
+**Required behavior**
 
-### Assumptions (accepted for MVP unless revisited)
+- State which side has the higher cost, including when B costs more than A.
+- Treat equal costs neutrally and handle zero-cost cases honestly.
+- Do not rank or recommend either property.
+- Preserve each side's values when the other side is edited.
 
-- Users can state take-home pay, debts, expenses, and savings with
-  reasonable accuracy; the product validates formats and ranges but
-  cannot verify truthfulness.
-- Taxes and insurance are either known by the user or entered as
-  explicit estimates; the MVP provides no external data source.
-- Session-only use is acceptable: no accounts and no saved data in
-  the MVP, which also minimizes privacy risk.
-- The application is fully usable without AI; AI explanations are an
-  enhancement layer, never a requirement for correct numbers.
+### 3.4 Dashboard and navigation
 
-### Unresolved decisions (must be settled before or during build)
+- Show each workflow's current status and summary of completed results.
+- Keep values available while navigating in the current browser session.
+- Retire outdated results when an input changes.
+- Support mobile navigation, keyboard interaction, and Light/Natural/Dark themes.
+- Do not treat theme persistence as persistence of financial records.
 
-1. Affordability thresholds: which ratios or guidelines (if any) to
-   show, and how to label them as general educational guidelines
-   rather than lending criteria. → Resolved: the engine reports raw
-   ratios only, with no thresholds, verdicts, or approvals.
-2. Maintenance reserve default: which heuristic (if any) to offer as a
-   starting estimate, clearly labeled as an assumption. → Resolved:
-   1% annually, editable, always badged as an assumption with a
-   "starting point only" caption.
-3. PMI (private mortgage insurance): in or out of the MVP cost model.
-   The confirmed cost list does not include it, but low–down-payment
-   scenarios are materially incomplete without it. → Resolved: in, as
-   an optional user-entered monthly figure on its own labeled line;
-   no estimation formula.
-4. Closing costs: in or out of the upfront-cash figure.
-5. Loan terms offered: fixed 30-year only, or a choice (e.g. 15/30).
-6. What counts as "other recurring costs": free-form user entries only,
-   or a preset list (utilities, etc.).
-7. Estimate assistance: whether the product may suggest starting
-   estimates at all (still labeled as estimates), or require the user
-   to enter every figure.
+### 3.5 Financial Insights
+
+**Calculated insights** are available immediately after a successful financial calculation. They include verified figures and visualizations that do not depend on Meta.
+
+**Optional AI explanations** require an explicit user action. The server sends relevant inputs and calculated facts to Meta Muse Spark 1.3, accepts only structured output, checks numerical claims and cited facts, and displays observations with supporting figures and limitations when validation passes.
+
+If an explanation is rejected or the provider is unavailable, the calculated insights remain visible. A retry is initiated only by the user, where allowed by the error contract.
+
+## 4. Scope decisions
+
+| Area | Release decision |
+| --- | --- |
+| Affordability | Included |
+| Property Costs | Included |
+| Compare Properties | Included |
+| Dashboard and Financial Insights | Included |
+| Meta-generated explanations | Included as optional, user-initiated analysis |
+| What-If | Deterministic engine and `POST /api/what-if` implemented and tested; user-facing controls deferred |
+| Mortgage or credit approval | Excluded |
+| Property recommendations or rankings | Excluded |
+| User accounts and persistent financial records | Excluded |
+| External listings, live interest-rate feeds, and lender integration | Excluded |
+
+The existence of the What-If engine and endpoint does **not** mean What-If is a completed user-facing workflow.
+
+## 5. Financial model and evidence
+
+- Monetary amounts are handled as integer subunits for consistent calculations and rounding.
+- Inputs are validated before reaching the calculation engine.
+- Results are recomputed from inputs rather than copied from model-generated text.
+- The application distinguishes user-provided values, calculated values, assumptions, and estimates where appropriate.
+- The user can inspect detailed breakdowns and supporting figures.
+- Model explanations are not permitted to create authoritative new financial amounts.
+
+Important product choices:
+
+- Affordability ratios are descriptive; there is no hardcoded lending approval threshold.
+- A **1% annual maintenance reserve** may be offered as an editable starting assumption; it is not a prediction of actual maintenance spending.
+- PMI is an optional monthly figure when provided, not an automatic premium estimate.
+
+## 6. Privacy, accessibility, and quality
+
+- Keep secrets on the server and out of the repository.
+- Do not send data to Meta simply because a calculation page opens.
+- Explain clearly that requesting an AI analysis sends the relevant information and results to Meta.
+- No account creation is required to use the MVP.
+- Financial workflow state is session-scoped; a refresh clears it, while display-theme preference may persist.
+- Make forms, disclosure controls, navigation, and charts keyboard- and screen-reader-friendly.
+- Test the deterministic engine, HTTP routes, model response validation, and browser journeys separately.
+
+## 7. Acceptance criteria
+
+The release is acceptable when:
+
+1. Each of the three user-facing workflows can calculate and display verified values.
+2. Invalid inputs yield safe, actionable errors without showing stale results.
+3. Changing inputs retires previously generated results and explanations.
+4. Charts and figures remain available if Meta is disabled or returns a rejected response.
+5. An AI explanation is never requested automatically and is never displayed before validation.
+6. Property comparisons handle A-higher, B-higher, and equal cases correctly.
+7. The experience works on mobile and supports accessible controls.
+8. The README and demo show the actual implemented feature set without invented capabilities.
+
+## 8. Limitations and future direction
+
+HomeWise AI is intended for education and exploration. It does not verify bank statements, property data, quoted insurance premiums, tax assessments, loan eligibility, or lender closing disclosures. Real costs can differ from estimates.
+
+Future work may include the deferred What-If interface and additional refinement of AI explanation reliability. These are **not part of the current shipped UI**.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for implementation structure and [PROJECT_RULES.md](PROJECT_RULES.md) for engineering safeguards.

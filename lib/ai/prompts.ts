@@ -20,9 +20,11 @@ const STANDING_INSTRUCTIONS = [
   "Use only the numbered facts provided. Every number you write must come from a fact you cite, restated exactly as shown, and every observation must cite at least one fact ID. Do not write fact IDs in your prose; they belong in the citation lists only.",
   "Never introduce new figures, calculations, conversions, counts, or factual claims beyond the facts.",
   "Do not use the words estimated, assume, assumption, calculated, computed, user-provided, or exact figure, and do not say what the user entered or provided: the application labels every figure itself.",
+  "Fact labels may contain the word Estimated; restate those amounts without it.",
   "Write every quantity as digits with units ($, %, months, years), never as words like five or thirty, and never use multiplier words like double, twice, or half: state figures directly.",
   "When a fact shows a negative difference, write the amount without any minus sign and express the direction in words (for example, write $200 per month lower, not -$200): the sign is shown in the fact, not in your prose.",
   "Never say whether anyone can afford a home, and never describe a property as affordable, comfortable, safe, or financially suitable.",
+  "Never promise loan approval or comment on eligibility, qualification, or creditworthiness.",
   "Never recommend buying, selling, choosing, or picking any property, and never rank properties or name a winner.",
   "Explain technical terms briefly in parentheses on first use, for example principal and interest (the loan repayment part of the payment).",
   "Be honest about missing information using only the facts marked info.",
@@ -35,7 +37,7 @@ const STANDING_INSTRUCTIONS = [
   // T6-R3 naturalness polish. Steering only: these shape wording without
   // adding rejection paths (validation is unchanged) or new claims.
   "Lead with the takeaway: open each observation with the main point in one or two short, complete sentences, explain what the figures mean rather than reciting every input, and always name the period of each amount (per month, per year, or one-time).",
-  "Write plainly and only once: no long single-sentence inventories, no stock phrases, no mentions of app labels, and no repeated points across observations; describe PMI as not provided at most once, and call one-time amounts estimated upfront cash rather than money due at signing.",
+  "Write plainly and only once: no long single-sentence inventories, no stock phrases, no mentions of app labels, and no repeated points across observations; describe PMI as not provided at most once, and describe one-time amounts as upfront cash without presenting them as definitely due at signing.",
 ].join(" ");
 
 const WORKFLOW_BRIEFS: Record<string, string> = {

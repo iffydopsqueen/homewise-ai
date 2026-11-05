@@ -334,7 +334,7 @@ describe("validateExplanation", () => {
         },
         LEDGER,
       );
-      expect(result).toEqual({ ok: false, reason: "banned_language" });
+      expect(result).toEqual({ ok: false, reason: "banned_language", bannedCategory: "verdict" });
     }
   });
 
@@ -354,7 +354,7 @@ describe("validateExplanation", () => {
         },
         LEDGER,
       );
-      expect(result).toEqual({ ok: false, reason: "banned_language" });
+      expect(result).toEqual({ ok: false, reason: "banned_language", bannedCategory: "provenance" });
     }
   });
 
@@ -417,7 +417,7 @@ describe("validateExplanation", () => {
         },
         LEDGER,
       );
-      expect(result).toEqual({ ok: false, reason: "banned_language" });
+      expect(result).toEqual({ ok: false, reason: "banned_language", bannedCategory: "verdict" });
     }
   });
 
@@ -435,7 +435,7 @@ describe("validateExplanation", () => {
         },
         LEDGER,
       );
-      expect(result).toEqual({ ok: false, reason: "banned_language" });
+      expect(result).toEqual({ ok: false, reason: "banned_language", bannedCategory: "multiplier" });
     }
     const allowed = validateExplanation(
       {
@@ -547,7 +547,7 @@ describe("remaining verdict bypasses", () => {
         },
         LEDGER,
       );
-      expect(result).toEqual({ ok: false, reason: "banned_language" });
+      expect(result).toEqual({ ok: false, reason: "banned_language", bannedCategory: "verdict" });
     }
   });
 
@@ -785,7 +785,7 @@ describe("predicative comparative verdicts", () => {
       "Property A seems worse.",
       "Property B looks best.",
     ]) {
-      expect(check(text)).toEqual({ ok: false, reason: "banned_language" });
+      expect(check(text)).toEqual({ ok: false, reason: "banned_language", bannedCategory: "verdict" });
     }
   });
 
@@ -795,7 +795,7 @@ describe("predicative comparative verdicts", () => {
       "A poor investment.",
       "An expensive property.",
     ]) {
-      expect(check(text)).toEqual({ ok: false, reason: "banned_language" });
+      expect(check(text)).toEqual({ ok: false, reason: "banned_language", bannedCategory: "verdict" });
     }
   });
 
@@ -824,7 +824,7 @@ describe("predicative comparative verdicts", () => {
       "Property B seems better.",
       "Property A looks worse.",
     ]) {
-      expect(check(text)).toEqual({ ok: false, reason: "banned_language" });
+      expect(check(text)).toEqual({ ok: false, reason: "banned_language", bannedCategory: "verdict" });
     }
   });
 });
@@ -905,5 +905,91 @@ describe("sign isolation across phrases", () => {
       ok: false,
       reason: "number_mismatch",
     });
+  });
+});
+
+describe("prompt/validator alignment (T9)", () => {
+  function check(
+    text: string,
+    factIds: string[] = ["f1"],
+  ): ReturnType<typeof validateExplanation> {
+    return validateExplanation(
+      {
+        observations: [{ text, factIds }],
+        limitations: { text: "Nothing further.", factIds: ["f1"] },
+      },
+      LEDGER,
+    );
+  }
+
+  it("accepts neutral property-cost comparisons", () => {
+    // Validator-safe equivalents of the alignment brief: no "estimated",
+    // which the provenance ban reserves for application labels.
+    expect(
+      check("Property B has a lower monthly cost than Property A.").ok,
+    ).toBe(true);
+    expect(
+      check(
+        "The difference is mainly explained by principal and interest and property taxes.",
+      ).ok,
+    ).toBe(true);
+    expect(
+      check(
+        "These figures reflect the values provided and may exclude costs that were not entered.",
+      ).ok,
+    ).toBe(true);
+  });
+
+  it("rejects estimated-vocabulary as provenance with its category", () => {
+    expect(check("Property B has a lower estimated monthly cost.")).toEqual({
+      ok: false,
+      reason: "banned_language",
+      bannedCategory: "provenance",
+    });
+  });
+
+  it("rejects purchase recommendations with the verdict category", () => {
+    for (const text of [
+      "You should buy Property B.",
+      "Choose Property A for the best outcome.",
+      "Property B is the better choice.",
+    ]) {
+      expect(check(text)).toEqual({
+        ok: false,
+        reason: "banned_language",
+        bannedCategory: "verdict",
+      });
+    }
+  });
+
+  it("rejects lending approval and eligibility claims", () => {
+    for (const text of [
+      "Your loan will be approved.",
+      "Approval is likely at this payment.",
+      "You are eligible for this mortgage.",
+      "You qualify for this home.",
+      "You can prequalify with these figures.",
+    ]) {
+      expect(check(text)).toEqual({
+        ok: false,
+        reason: "banned_language",
+        bannedCategory: "verdict",
+      });
+    }
+  });
+
+  it("still enforces citations and numeric grounding", () => {
+    // Unknown fact ID still fails closed.
+    expect(check("Nothing to see.", ["f999"])).toEqual({
+      ok: false,
+      reason: "unknown_fact",
+    });
+    // Ungrounded figure still fails closed.
+    expect(check("The total is $9.99.", ["f1"])).toEqual({
+      ok: false,
+      reason: "number_mismatch",
+    });
+    // Grounded figure still passes.
+    expect(check("The total is $5,100.00.", ["f1"]).ok).toBe(true);
   });
 });

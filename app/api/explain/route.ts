@@ -35,6 +35,7 @@ import {
 } from "../../../lib/ai/prompts";
 import {
   validateExplanation,
+  type BannedCategory,
   type ValidationReason,
 } from "../../../lib/ai/validateExplanation";
 import { assessAffordability } from "../../../lib/calc/affordability";
@@ -68,6 +69,7 @@ export async function POST(request: Request): Promise<Response> {
     extra?: {
       failureCategory?: DiagnosticFailureCategory;
       validatorReason?: ValidationReason;
+      bannedCategory?: BannedCategory;
       inputTokens?: number;
       outputTokens?: number;
       reasoningTokens?: number;
@@ -134,6 +136,10 @@ export async function POST(request: Request): Promise<Response> {
       emit("failure", {
         failureCategory: "validation_rejected",
         validatorReason: checked.reason,
+        bannedCategory:
+          checked.reason === "banned_language"
+            ? checked.bannedCategory
+            : undefined,
         ...tokenFields({ usage: meta.usage }),
       });
       return toResponse(aiUnavailableResponse());

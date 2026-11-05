@@ -267,8 +267,20 @@ describe("naturalness polish (T6-R3)", () => {
     expect(text).toContain("no repeated points across observations");
     expect(text).toContain("describe PMI as not provided at most once");
     expect(text).toContain(
-      "estimated upfront cash rather than money due at signing",
+      "describe one-time amounts as upfront cash without presenting them as definitely due at signing",
     );
+  });
+
+  it("never instructs validator-banned vocabulary (T9 alignment)", () => {
+    const text = instructions();
+    // The validator bans "estimated" as a provenance assertion, so the
+    // prompt must direct the model away from it — never toward it.
+    expect(text).toContain("Do not use the words estimated");
+    expect(text).toContain("restate those amounts without it");
+    expect(text).not.toContain("estimated upfront cash");
+    expect(text).not.toMatch(/call .* estimated /i);
+    expect(text).toContain("Never promise loan approval");
+    expect(text).toContain("eligibility, qualification, or creditworthiness");
   });
 
   it("keeps schema caps, citations, and verdict bans intact", () => {

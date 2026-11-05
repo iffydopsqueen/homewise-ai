@@ -69,6 +69,7 @@ const ALLOWED_KEYS = new Set([
   "outcome",
   "failureCategory",
   "validatorReason",
+  "bannedCategory",
   "totalMs",
   "stages",
   "inputTokens",
@@ -462,6 +463,32 @@ describe("failure classification", () => {
     expect(record.outcome).toBe("failure");
     expect(record.failureCategory).toBe("validation_rejected");
     expect(record.validatorReason).toBe("unknown_fact");
+    expect(record.bannedCategory).toBeUndefined();
+  });
+
+  it("tags banned-language rejections with a safe rule category", async () => {
+    process.env[DIAGNOSTICS_ENV_KEY] = "1";
+    stubFetch(async () =>
+      jsonResponse(
+        completedPayload(
+          JSON.stringify({
+            observations: [
+              { text: "The estimated total is fine.", factIds: ["f1"] },
+            ],
+            limitations: { text: "Nothing further.", factIds: ["f1"] },
+          }),
+        ),
+      ),
+    );
+    const response = await POST(
+      postRequest({ workflow: "affordability", data: VALID_AFFORDABILITY }),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual(AI_UNAVAILABLE_BODY);
+    const record = lastRecord();
+    expect(record.failureCategory).toBe("validation_rejected");
+    expect(record.validatorReason).toBe("banned_language");
+    expect(record.bannedCategory).toBe("provenance");
   });
 
   it("records disabled and missing-key paths with zero provider calls", async () => {

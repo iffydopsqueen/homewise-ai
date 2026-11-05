@@ -2,90 +2,62 @@
 
 **Understand the full cost of a home before you buy.**
 
-HomeWise AI helps first-time homebuyers assess monthly affordability,
-estimate the ongoing and upfront costs of homeownership, and compare
-two properties side by side.
-
-It combines deterministic financial calculations with optional
-explanations powered by Meta Muse Spark 1.3, helping buyers understand
-financial information without relying on AI to perform the calculations.
-
-Built for the Meta Global AI Developer Hackathon.
+HomeWise AI helps first-time homebuyers explore what a home could mean for their monthly budget. It combines transparent financial calculations, property cost comparisons, and optional explanations powered by **Meta Muse Spark 1.3**.
 
 ## Why HomeWise AI?
 
-A mortgage payment does not represent the full cost of owning a home.
-Property taxes, homeowners insurance, HOA fees, maintenance reserves,
-and other recurring costs — plus the upfront cash needed at purchase —
-can reshape a household budget long after the listing price stops
-mattering.
+A mortgage payment is not the full cost of homeownership. Property taxes, insurance, maintenance, homeowners association (HOA) fees, and upfront expenses can significantly affect a household's budget. HomeWise AI brings these figures together so buyers can understand the costs and tradeoffs before taking their next steps.
 
-Traditional calculators show numbers without explanation, while
-general-purpose AI chatbots explain fluently but can invent or
-miscalculate figures. HomeWise AI pairs tested calculation code with
-AI explanations grounded exclusively in those verified figures, so
-buyers see both the numbers and what they mean.
+The application **calculates with deterministic code and explains with Meta AI**. The AI does not decide whether someone can afford a house or which property they should purchase.
 
 ## Features
 
-| Area | What you can do |
-|---|---|
-| Affordability | See how a proposed housing payment fits against take-home income, debts, expenses, and savings. |
-| Property Costs | Break down one property's monthly, annual, and upfront costs across every major category. |
-| Compare Properties | Compare two properties side by side with neutral, per-component differences. |
-| Financial Insights | Read deterministic charts plus optional AI explanations with supporting evidence. |
-| Dashboard | Track each workflow's status and revisit completed results. |
-| Layout & themes | Work on mobile or desktop in Light, Natural, or Dark appearance. |
+| Feature | What you can do |
+| --- | --- |
+| **Affordability** | Enter take-home income, proposed housing costs, debts, living expenses, and savings to see monthly money remaining, income ratios, and a savings cushion. |
+| **Property Costs** | Estimate monthly and annual housing costs, including principal and interest, property tax, insurance, HOA fees, maintenance, and other applicable expenses. Review estimated upfront cash separately. |
+| **Compare Properties** | Compare two properties side by side, including monthly costs, annual costs, upfront cash, and the categories driving the differences. |
+| **Financial Insights** | Explore calculated charts immediately; optionally request plain-language Meta AI observations, supporting figures, and limitations. |
+| **Dashboard** | See the status and results of completed workflows in one place. |
 
-Every figure carries a source label — user-provided, estimate,
-assumption, or calculated — and every result view includes an
-educational-use disclaimer.
+The interface works on desktop and mobile, supports keyboard interaction, and offers **Light**, **Natural**, and **Dark** themes. Values are labeled as user-provided, estimated, assumed, or calculated where relevant.
 
-## How Meta AI works
+## What Meta AI contributes
 
-Each explanation follows the same verified pipeline:
+HomeWise AI uses **Meta Muse Spark 1.3** through the server-side **Responses API** to interpret financial results—not to calculate them.
 
-User financial inputs
-→ deterministic financial calculations
-→ server-generated facts ledger
-→ Meta Muse Spark 1.3 Responses API
-→ structured AI explanation
-→ server-side numerical and citation validation
-→ readable observations, supporting evidence, and limitations.
+```text
+User enters information
+        ↓
+Validated, deterministic financial calculations
+        ↓
+Results and provenance recorded in a server-generated facts ledger
+        ↓  (only after the user requests an explanation)
+Meta Muse Spark 1.3 produces structured observations
+        ↓
+HomeWise validates cited facts and numerical claims
+        ↓
+Readable observations, supporting figures, and limitations
+```
 
-Key properties of this design:
+A model-generated explanation is shown only after passing the application's structural, citation, numerical, and prohibited-language checks. These checks reduce risk but cannot guarantee every sentence is perfectly expressed. If the model is unavailable or its answer is rejected, **calculated results and charts remain usable**. The user initiates each request; HomeWise does not automatically generate explanations or automatically retry failed requests.
 
-- Meta AI interprets calculated figures; deterministic code performs
-  all financial arithmetic.
-- Explanation requests are user-initiated — nothing is requested
-  automatically, and there are no automatic retries.
-- The model does not independently verify user-entered data.
-- The model does not recommend a home or approve a mortgage.
-- Every number in a reply must match a cited ledger fact exactly, or
-  the whole explanation is safely rejected.
-- Calculations and visualizations remain fully usable when Meta is
-  unavailable, with a short neutral message and manual retry only for
-  transient failures.
-
-Validation grounds figures and citations; like any fixed check, it
-cannot prove every qualitative sentence true, so explanations stay
-short, cited, and beside their evidence.
+The AI does not independently verify entered values, approve mortgages, rank homes, or provide purchase recommendations. See [Meta integration notes](META_API_NOTES.md) for details.
 
 ## Technology
 
-- Next.js App Router + React + TypeScript (strict)
-- Tailwind CSS
-- Zod for input, API, and model-output validation
-- Meta Muse Spark 1.3 via the Responses API (server-side only)
-- Vitest for unit/API tests, Playwright for end-to-end tests
-- ESLint
+| Area | Technology |
+| --- | --- |
+| Application | Next.js App Router, React, TypeScript |
+| Styling | Tailwind CSS |
+| Input and output contracts | Zod |
+| Financial calculations | Deterministic TypeScript engine using integer monetary amounts |
+| AI explanations | Meta Muse Spark 1.3, Responses API, structured output |
+| Quality checks | Vitest, Playwright, TypeScript, ESLint |
 
-Exact dependency versions are pinned in `package.json`.
+## Run locally
 
-## Getting started
-
-Prerequisites: Node.js 20.9 or newer (per the Next.js 16 engine
-requirement) and npm.
+**Requirements:** Node.js 20.9 or newer and npm. This project was developed and verified using Node.js 26.
 
 ```bash
 git clone https://github.com/iffydopsqueen/homewise-ai.git
@@ -94,55 +66,52 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The calculators, charts, dashboard, and
-comparison views all work without a Meta API key.
+Open **http://localhost:3000**. The financial calculators and charts work without a Meta API key.
 
-To enable optional AI explanations, create a `.env.local` file from
-the template (never overwrite an existing `.env.local`) and add your
-key locally:
+### Enable optional Meta explanations
 
-```bash
-cp .env.example .env.local   # then fill in MODEL_API_KEY
-```
-
-Environment variables (names only — values stay local):
-
-- `MODEL_API_KEY` — Meta Model API key, read server-side at call time.
-- `AI_EXPLAIN_ENABLED` — kill switch; production stays disabled unless
-  exactly `"true"`.
-- `HOMEWISE_AI_DIAGNOSTICS` — opt-in server timing/category log (`"1"`).
-- `HOMEWISE_AI_EFFORT` — experimental effort override; only `"minimal"`
-  changes the default `"low"`. Not a production recommendation.
-
-## Running tests
+If you do not already have `.env.local`, create it from the provided template:
 
 ```bash
-npm run typecheck   # tsc --noEmit
-npm run lint        # eslint .
-npm run test        # Vitest unit/API suite
-npm run test:e2e    # Playwright journeys (stubbed provider, no live calls)
-npm run build       # production build
+cp .env.example .env.local
 ```
 
-## Project documentation
+Set your own key locally:
 
-- [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — product requirements and MVP scope.
-- [ARCHITECTURE.md](ARCHITECTURE.md) — technical design and implementation records.
-- [META_API_NOTES.md](META_API_NOTES.md) — Meta integration details and verification notes.
-- [PROJECT_RULES.md](PROJECT_RULES.md) — engineering ground rules and safety baseline.
-- [docs/DEMO.md](docs/DEMO.md) — three-minute demo recording guide.
+```dotenv
+MODEL_API_KEY=your_meta_model_api_key
+```
+
+In local development, explanations can be available when a valid key is configured. For production, follow the `AI_EXPLAIN_ENABLED` setting documented in `.env.example`. Restart the server after changing environment variables.
+
+**Never commit `.env.local` or a real API key.** The model is called by the server; credentials are never needed in the browser. Optional server-only diagnostics and reasoning settings are described in [META_API_NOTES.md](META_API_NOTES.md).
+
+## Check the project
+
+Run these commands from the repository root:
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npx playwright test
+npm run build
+```
+
+Playwright requires its browser dependencies. The browser test suite uses controlled test responses; genuine Meta requests are a separate, manual integration check.
+
+## Documentation
+
+- [Product specification](PRODUCT_SPEC.md) — intended users, workflows, requirements, and scope.
+- [Architecture](ARCHITECTURE.md) — data flow, financial engine, AI boundaries, and design decisions.
+- [Meta API notes](META_API_NOTES.md) — model request, validation, failure behavior, and diagnostics.
+- [Project rules](PROJECT_RULES.md) — correctness, privacy, and engineering safeguards.
+- [Demo guide](docs/DEMO.md) — sample data and how to record a genuine Meta API call.
 
 ## Scope and limitations
 
-- Educational estimates only — not lending or credit approval, and not
-  personalized financial advice.
-- The app never ranks properties or recommends a purchase.
-- User-provided values are not independently verified; estimates
-  depend on the assumptions supplied.
-- Upfront cash is this app's estimate, not a lender-confirmed
-  cash-to-close figure; missing costs such as PMI affect estimates.
-- No accounts or persistent financial records in the MVP; session data
-  clears on refresh.
-- The What-If user interface is intentionally deferred (its engine and
-  API are implemented and tested).
-- AI explanation availability may vary; calculations never depend on it.
+HomeWise AI is an **educational estimation tool**, not a lender, credit-decision system, or financial adviser. Results are based on entered figures and assumptions, which are not independently verified. The upfront-cash estimate is **not** lender-confirmed cash to close. Missing or uncertain costs, including private mortgage insurance (PMI), may change the real total.
+
+The MVP has no user accounts or persistent financial history. Financial workflow data is kept in the browser session rather than saved as an account record. The **What-If** calculation engine and API exist, but the user-facing What-If feature was deliberately deferred from this release.
+
+HomeWise AI is a hackathon prototype, not a production mortgage or lending service. Its explanations can occasionally be unavailable if a model response fails validation.

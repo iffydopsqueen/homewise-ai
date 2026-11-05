@@ -4,7 +4,10 @@ import type {
   MetaIncompleteDetail,
   MetaUsage,
 } from "./metaClient";
-import type { ValidationReason } from "./validateExplanation";
+import type {
+  BannedCategory,
+  ValidationReason,
+} from "./validateExplanation";
 import type { ExplainWorkflow } from "../validation/explain";
 
 // Privacy-safe server diagnostics for POST /api/explain (T5a.1).
@@ -79,6 +82,7 @@ export interface DiagnosticRecord {
   outcome: DiagnosticOutcome;
   failureCategory?: DiagnosticFailureCategory;
   validatorReason?: ValidationReason;
+  bannedCategory?: BannedCategory;
   totalMs: number;
   stages: DiagnosticStages;
   inputTokens?: number;
